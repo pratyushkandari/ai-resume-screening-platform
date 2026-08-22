@@ -79,22 +79,24 @@ export default function Login({ setRole }) {
       const fd = new FormData();
 
       if (isRegister) {
-        fd.append("name", form.name.trim());
-        fd.append("email", email);
-        fd.append("password", password);
-        fd.append("role", form.role);
-
-        const res = await api.post("/api/register", fd);
+        const payload = {
+          name: form.name.trim(),
+          email: email,
+          password: password,
+          role: form.role
+        };
+        const res = await api.post("/api/register", payload);
         if (res.data?.access_token) {
           localStorage.setItem("token", res.data.access_token);
         }
         setMsg("✅ Account registered successfully! Please sign in.");
         setIsRegister(false);
       } else {
-        fd.append("email", email);
-        fd.append("password", password);
-
-        const res = await api.post("/api/login", fd);
+        const payload = {
+          email: email,
+          password: password
+        };
+        const res = await api.post("/api/login", payload);
         const loggedRole = (res.data.role || "").toLowerCase().trim();
         const userId = res.data.user_id;
         const token = res.data.access_token;
@@ -117,7 +119,18 @@ export default function Login({ setRole }) {
         navigate(loggedRole === "hr" ? "/" : "/candidate");
       }
     } catch (e) {
-      const errorMsg = e.response?.data?.detail || "Authentication failed. Please verify credentials.";
+      let errorMsg = "Authentication failed. Please verify credentials.";
+      if (e.response?.data?.detail) {
+        if (typeof e.response.data.detail === "string") {
+          errorMsg = e.response.data.detail;
+        } else if (Array.isArray(e.response.data.detail)) {
+          errorMsg = e.response.data.detail.map(d => d.msg || JSON.stringify(d)).join("; ");
+        } else {
+          errorMsg = JSON.stringify(e.response.data.detail);
+        }
+      } else if (e.message) {
+        errorMsg = e.message;
+      }
       setMsg("❌ " + errorMsg);
     } finally {
       setLoading(false);

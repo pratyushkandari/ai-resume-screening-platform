@@ -268,18 +268,33 @@ def _sanitize_text(text_input: str) -> str:
 # =============================================================================
 #  AUTHENTICATION & IDENTITY ENDPOINTS
 # =============================================================================
+#  AUTHENTICATION & IDENTITY ENDPOINTS (JWT + RBAC + Password Strength)
+# =============================================================================
 @app.post("/api/register", tags=["Auth"])
-def register(
-    name: str = Form(...),
-    email: str = Form(...),
-    password: str = Form(...),
-    role: str = Form("candidate"),
+async def register(
+    request: Request,
     db: Session = Depends(get_db)
 ):
     """
     Registers a new recruiter or candidate with strict input validation,
     RFC 5322 email checking, and multi-factor password strength verification.
+    Supports both JSON and Form Data payloads.
     """
+    try:
+        content_type = request.headers.get("content-type", "").lower()
+        if "application/json" in content_type:
+            data = await request.json()
+        else:
+            form = await request.form()
+            data = dict(form)
+    except Exception:
+        data = {}
+
+    name = str(data.get("name") or "").strip()
+    email = str(data.get("email") or "").strip()
+    password = str(data.get("password") or "")
+    role = str(data.get("role") or "candidate").strip().lower()
+
     # 1. Validate Name
     clean_name = _sanitize_text(name)
     if len(clean_name) < 2 or len(clean_name) > 100:
@@ -300,9 +315,8 @@ def register(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=pw_res)
 
     # 4. Normalize & Validate Role
-    clean_role = role.strip().lower()
-    if clean_role not in ["hr", "candidate"]:
-        clean_role = "candidate"
+    if role not in ["hr", "candidate"]:
+        role = "candidate"
 
     # 5. Check Duplicate Account
     existing_user = db.query(models.User).filter(func.lower(models.User.email) == clean_email).first()
@@ -317,7 +331,7 @@ def register(
         name=clean_name,
         email=clean_email,
         password=hash_password(password),
-        role=clean_role
+        role=role
     )
     db.add(new_user)
     db.commit()
@@ -326,7 +340,7 @@ def register(
     # 7. Generate Signed JWT Access Token
     token = create_access_token({"user_id": new_user.user_id, "role": new_user.role, "name": new_user.name})
 
-    logger.info("New user registered: %s (role=%s, user_id=%s)", clean_email, clean_role, new_user.user_id)
+    logger.info("New user registered: %s (role=%s, user_id=%s)", clean_email, role, new_user.user_id)
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -338,15 +352,27 @@ def register(
 
 
 @app.post("/api/login", tags=["Auth"])
-def login(
-    email: str = Form(...),
-    password: str = Form(...),
+async def login(
+    request: Request,
     db: Session = Depends(get_db)
 ):
     """
     Authenticates user credentials and returns signed JWT access token.
-    Includes sanitization and timing attack protection.
+    Supports both JSON and Form Data payloads.
     """
+    try:
+        content_type = request.headers.get("content-type", "").lower()
+        if "application/json" in content_type:
+            data = await request.json()
+        else:
+            form = await request.form()
+            data = dict(form)
+    except Exception:
+        data = {}
+
+    email = str(data.get("email") or "").strip()
+    password = str(data.get("password") or "")
+
     is_valid_email, clean_email = validate_email_format(email)
     if not is_valid_email:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Please enter a valid email address.")
@@ -388,6 +414,7 @@ def login(
         "name": user.name,
         "user_id": user.user_id
     }
+
 
 
 @app.get("/api/me", tags=["Auth"])
