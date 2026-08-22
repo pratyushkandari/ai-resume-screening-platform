@@ -1,0 +1,99 @@
+# =============================================================================
+#  Enterprise Git Ignore Configuration
+# =============================================================================
+
+# --- Python & Virtual Environments ---
+venv/
+.venv/
+env/
+ENV/
+backend/venv/
+backend/.venv/
+backend/env/
+bin/
+lib/
+include/
+Lib/
+Scripts/
+
+# --- Byte-compiled / Optimized files ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# --- Pytest & Test Artifacts ---
+.pytest_cache/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.hypothesis/
+htmlcov/
+
+# --- Node.js & React Frontend ---
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+.npm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# --- Environment & Secret Configuration ---
+.env
+.env.*
+backend/.env
+backend/.env.*
+!.env.example
+*.pem
+*.key
+
+# --- Local File Upload Storage ---
+backend/uploads/*
+!backend/uploads/.gitkeep
+uploads/*
+!uploads/.gitkeep
+
+# --- Database & Persistent Storage ---
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+data/
+pgdata/
+
+# --- Operating System & Editor Artifacts ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace

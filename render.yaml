@@ -1,0 +1,75 @@
+# =============================================================================
+#  Render Blueprint Specification (Infrastructure as Code)
+#  Provisions PostgreSQL, Redis, FastAPI Backend, and React Frontend in 1 Click
+# =============================================================================
+
+databases:
+  - name: resume-db
+    databaseName: resume_db1
+    user: resume_user1
+    plan: free
+    region: oregon
+    ipAllowList: []
+
+services:
+  # ---------------------------------------------------------------------------
+  # Distributed Redis 7 Cache & Rate Limiting Service
+  # ---------------------------------------------------------------------------
+  - type: redis
+    name: resume-redis
+    region: oregon
+    plan: free
+    ipAllowList: []
+
+  # ---------------------------------------------------------------------------
+  # FastAPI Application Backend Web Service
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: resume-screening-backend
+    env: python
+    region: oregon
+    plan: free
+    rootDir: backend
+    buildCommand: "pip install --upgrade pip && pip install -r requirements.txt"
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: resume-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: resume-redis
+          property: connectionString
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "1440"
+      - key: UPLOAD_DIR
+        value: "uploads"
+
+  # ---------------------------------------------------------------------------
+  # React Frontend (Static Web Application)
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: resume-screening-frontend
+    env: static
+    region: oregon
+    plan: free
+    rootDir: frontend
+    buildCommand: "npm install && npm run build"
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: resume-screening-backend
+          property: host

@@ -1,0 +1,31 @@
+# =============================================================================
+#  Backend Python Dependencies - AI Resume Screening & Matching System
+# =============================================================================
+
+# Web Framework & ASGI Server
+fastapi>=0.100.0
+uvicorn[standard]>=0.22.0
+python-multipart>=0.0.6
+aiofiles>=23.1.0
+
+# Database & ORM
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.6
+python-dotenv>=1.0.0
+
+# Security & Authentication (JWT + Bcrypt)
+passlib[bcrypt]>=1.7.4
+bcrypt>=4.0.1
+pyjwt>=2.8.0
+
+# Document Processing (Word & PDF)
+python-docx>=0.8.11
+pypdf>=3.17.0
+
+# Machine Learning & NLP
+sentence-transformers>=2.2.2
+numpy>=1.24.0
+
+# Testing & Quality Assurance
+pytest>=7.4.0
+httpx>=0.24.0

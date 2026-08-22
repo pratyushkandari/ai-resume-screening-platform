@@ -1,0 +1,326 @@
+
+:root {
+  /* Background colors and theme shades */
+  --bg: #f5f7fb;             /* Light gray-blue background for main pages */
+  --card-bg: #ffffff;        /* Default white background for cards */
+  --accent: #2563eb;         /* Main blue accent color (matches header, buttons) */
+  --accent-600: #1e40af;     /* Darker shade of blue for hover states */
+  --muted: #6b7280;          /* Gray for subtitles, labels, etc. */
+  --success: #10b981;        /* Green for success badges or positive alerts */
+  --danger: #ef4444;         /* Red for errors or “missing” skill chips */
+  --glass: rgba(255,255,255,0.6); /* Used for translucent/glass effects */
+  --radius: 12px;            /* Default corner roundness (border-radius) */
+  --shadow-sm: 0 6px 18px rgba(15,23,42,0.06); /* Light shadow for floating cards */
+}
+
+
+
+* { box-sizing: border-box }
+
+/* Ensures full height layout (100% screen height for app root) */
+html, body, #root { height: 100% }
+
+/* Base body styles: font, colors, background, and text smoothing */
+body {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  margin: 0;
+  background: linear-gradient(180deg, #eef2ff 0%, var(--bg) 100%);
+  color: #0f172a;
+  -webkit-font-smoothing: antialiased; /* Smooth fonts on Chrome/Edge (Windows) */
+  -moz-osx-font-smoothing: grayscale;  /* Smooth fonts on Firefox */
+  line-height: 1.45;
+}
+
+
+/* =============================================================================================
+🧭 HEADER BAR STYLING
+=============================================================================================*/
+.header {
+  background: linear-gradient(90deg, var(--accent-600), #1f2937); /* Blue → dark gradient */
+  color: white;
+  padding: 14px 20px;
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 6px 20px rgba(16,24,40,0.08); /* Subtle shadow under header */
+}
+
+/* Brand title in header (“ResumeMatcher”) */
+.header .brand {
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: 0.2px;
+}
+
+/* Navigation links in header */
+.header nav a {
+  color: #e6f0ff;
+  margin-right: 14px;
+  text-decoration: none;
+  font-weight: 600;
+}
+.header nav a:hover {
+  color: white;
+  text-decoration: underline; /* underline on hover */
+}
+
+
+/* =============================================================================================
+🏗️ MAIN PAGE CONTAINER
+=============================================================================================*/
+.container {
+  max-width: 1200px;  /* limits page width for large screens */
+  margin: 24px auto;  /* centers the content horizontally */
+  padding: 0 16px;    /* side padding for spacing */
+}
+
+
+/* =============================================================================================
+📦 CARD COMPONENTS (used in Dashboard, UploadJob, UploadResume)
+=============================================================================================*/
+.card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 18px;
+  border: 1px solid rgba(15,23,42,0.03); /* very light border */
+}
+
+/* Layout for side-by-side sections (e.g. charts + info) */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 420px; /* main + sidebar */
+  gap: 18px;
+  align-items: start;
+}
+
+/* Responsive layout for smaller screens */
+@media (max-width: 980px) {
+  .grid { grid-template-columns: 1fr; } /* stack columns vertically */
+}
+
+/* Card titles */
+.card-title {
+  font-weight: 700;
+  font-size: 18px;
+  margin-bottom: 8px;
+  color: #0f172a;
+}
+
+/* Smaller subtitle text */
+.small {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+
+/* =============================================================================================
+🎯 INPUTS, TEXTAREAS, SELECT DROPDOWNS
+=============================================================================================*/
+.input, textarea, select {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #eef2ff;
+  width: 100%;
+  font-size: 14px;
+  background: #fbfdff;
+}
+
+
+/* =============================================================================================
+🔘 BUTTONS (primary, secondary, ghost)
+=============================================================================================*/
+
+/* Primary button (blue) */
+.btn {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 10px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  box-shadow: 0 6px 16px rgba(37,99,235,0.12);
+}
+
+/* Secondary button (gray, used for “View”, etc.) */
+.btn.secondary {
+  background: #6b7280;
+  box-shadow: none;
+}
+
+/* Ghost button (transparent border style) */
+.btn.ghost {
+  background: transparent;
+  color: var(--accent-600);
+  border: 1px solid rgba(37,99,235,0.08);
+}
+
+/* Horizontal button rows */
+.button-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+
+/* =============================================================================================
+ FILE INFO + SUCCESS BADGE
+=============================================================================================*/
+
+/* File upload details (file name, size) */
+.file-info {
+  font-size: 13px;
+  margin-top: 8px;
+  color: var(--muted);
+}
+
+/* Green badge (used after successful uploads) */
+.success-badge {
+  color: white;
+  background: var(--success);
+  padding: 6px 10px;
+  border-radius: 999px; /* fully rounded pill shape */
+  font-weight: 700;
+  display: inline-block;
+  font-size: 13px;
+}
+
+
+/* =============================================================================================
+ RANKED CANDIDATES LIST + CARD GRID
+=============================================================================================*/
+.ranked {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.ranked li {
+  padding: 10px 8px;
+  border-bottom: 1px dashed #f2f5fb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Flexible grid layout for candidate cards */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+}
+
+
+/* =============================================================================================
+ CANDIDATE CARDS (used in Dashboard ranked list)
+=============================================================================================*/
+.cand-card {
+  border-radius: 10px;
+  padding: 12px;
+  background: linear-gradient(0deg, #fff, #fff);
+  border: 1px solid rgba(15,23,42,0.04);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+/* Hover animation for candidate cards */
+.cand-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 18px 40px rgba(2,6,23,0.06);
+}
+
+/* Card header layout */
+.cand-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+/* Candidate name */
+.cand-title {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+/* Meta info (Score, Semantic, Skill) */
+.cand-meta {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+
+/* =============================================================================================
+ CHIPS (used for Matched / Missing Skills)
+=============================================================================================*/
+.chip {
+  display: inline-block;
+  padding: 6px 8px;
+  margin: 6px 6px 0 0;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+/* Green chip (matched skill) */
+.chip.matched {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid rgba(6,95,70,0.06);
+}
+
+/* Red chip (missing skill) */
+.chip.missing {
+  background: #fff5f5;
+  color: #9b2c2c;
+  border: 1px solid rgba(139,29,29,0.06);
+}
+
+/* Blue link text (used for Download links) */
+.link {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+
+/* =============================================================================================
+ PROGRESS BAR (used during resume uploads)
+=============================================================================================*/
+.progress {
+  height: 8px;
+  background: #eef2ff;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-top: 8px;
+  width: 100%;
+}
+
+/* Animated inner bar (grows as progress increases) */
+.progress > i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), #0ea5a6);
+  width: 0%;
+  transition: width 0.18s ease;
+}
+
+
+/* =============================================================================================
+ SMALL HELPER CLASSES (utility styles)
+=============================================================================================*/
+.center { text-align: center; }
+.row { display: flex; gap: 10px; align-items: center; }
+.padded { padding: 12px; }
+.footer-note { color: var(--muted); font-size: 13px; margin-top: 8px; }
+
+
+/* =============================================================================================
+ RESPONSIVE DESIGN (mobile/tablet optimizations)
+=============================================================================================*/
+@media (max-width: 640px) {
+  .header { padding: 12px; }
+  .card { padding: 12px; }
+  .card-grid { grid-template-columns: 1fr; } /* single-column layout */
+}
+
