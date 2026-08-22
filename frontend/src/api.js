@@ -1,6 +1,9 @@
+// frontend/src/api.js
+
 import axios from "axios";
 
-const BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+// In production, empty string lets the browser call relative /api/ via Nginx reverse proxy
+const BASE = import.meta.env.VITE_API_URL || "";
 
 const api = axios.create({
   baseURL: BASE,
@@ -27,7 +30,6 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      // Clear expired session data
       const currentPath = window.location.pathname;
       if (currentPath !== "/" && !currentPath.includes("login")) {
         localStorage.clear();
