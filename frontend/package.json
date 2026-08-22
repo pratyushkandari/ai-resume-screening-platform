@@ -9,7 +9,6 @@
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.7.0",
-    "@vitejs/plugin-react-oxc": "^0.4.3",
     "axios": "^1.12.2",
     "chart.js": "^4.5.0",
     "react": "^18.2.0",
