@@ -5,7 +5,7 @@ import re
 from typing import Optional, List, Dict, Any, Tuple
 from datetime import datetime, timedelta, timezone
 import jwt
-from passlib.context import CryptContext
+import bcrypt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
@@ -13,8 +13,6 @@ from sqlalchemy.orm import Session
 from .db import SessionLocal
 from . import models
 
-# Password hashing configuration
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # JWT configuration
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "prod-super-secret-key-change-in-production-resume-matcher-2026")
@@ -106,19 +104,24 @@ def validate_password_strength(password: str) -> Tuple[bool, str]:
 #  PASSWORD HASHING & VERIFICATION (Bcrypt)
 # =============================================================================
 def hash_password(password: str) -> str:
-    """Hash password with bcrypt (safe up to 72 bytes)."""
-    return pwd_context.hash(password[:72])
+    """Hash password with direct bcrypt (truncated safely to 72 bytes)."""
+    pwd_bytes = password.encode('utf-8')[:72]
+    salt = bcrypt.gensalt(rounds=12)
+    return bcrypt.hashpw(pwd_bytes, salt).decode('utf-8')
 
 
 def verify_password(password: str, hashed: str) -> bool:
-    """Verify password with bcrypt and legacy fallback."""
+    """Verify password with bcrypt and legacy plaintext fallback."""
     if not hashed:
         return False
     try:
-        return pwd_context.verify(password[:72], hashed)
+        pwd_bytes = password.encode('utf-8')[:72]
+        hashed_bytes = hashed.encode('utf-8')
+        return bcrypt.checkpw(pwd_bytes, hashed_bytes)
     except Exception:
         # Fallback for plain passwords migration
         return password == hashed
+
 
 
 # =============================================================================
