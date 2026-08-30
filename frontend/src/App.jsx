@@ -19,126 +19,176 @@ export default function App() {
 
   if (!role) return <Login setRole={setRole} />;
 
+  const isHR = role === "hr";
+
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      {/* 🔝 Modern Top Navigation Bar */}
-      <header
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          padding: "12px 24px",
-          background: "linear-gradient(90deg, #1e3a8a, #2563eb)",
-          color: "#fff",
-          alignItems: "center",
-          boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
-          position: "sticky",
-          top: 0,
-          zIndex: 100
-        }}
-      >
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", backgroundColor: "#f8fafc" }}>
+      {/* Modern Enterprise Header */}
+      <header className="app-header">
         <div
-          onClick={() => navigate(role === "hr" ? "/" : "/candidate")}
-          style={{
-            fontWeight: "800",
-            fontSize: "20px",
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            cursor: "pointer",
-            letterSpacing: "-0.5px"
-          }}
+          onClick={() => navigate(isHR ? "/" : "/candidate")}
+          className="brand-logo"
         >
-          <span>🚀</span> ResumeMatcher AI
+          <div className="brand-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <rect width="20" height="14" x="2" y="7" rx="2" ry="2"/>
+              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+            </svg>
+          </div>
+          <span className="brand-name">TalentFlow</span>
+          <span className="brand-badge">ATS</span>
         </div>
 
-        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-          {/* HR Navigation Actions */}
-          {role === "hr" && (
+        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+          {/* HR Navigation: Dashboard & Post Job ONLY (Upload Resume is Candidate Only) */}
+          {isHR ? (
             <>
               <button
                 onClick={() => navigate("/")}
-                style={{
-                  background: location.pathname === "/" ? "rgba(255,255,255,0.25)" : "transparent",
-                  color: "#fff",
-                  border: "1px solid rgba(255,255,255,0.3)",
-                  padding: "7px 12px",
-                  borderRadius: "8px",
-                  cursor: "pointer",
-                  fontWeight: "600",
-                  fontSize: "13px"
-                }}
+                className={`nav-link-btn ${location.pathname === "/" ? "active" : ""}`}
               >
-                📊 Dashboard
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect width="7" height="9" x="3" y="3" rx="1"/>
+                  <rect width="7" height="5" x="14" y="3" rx="1"/>
+                  <rect width="7" height="9" x="14" y="12" rx="1"/>
+                  <rect width="7" height="5" x="3" y="16" rx="1"/>
+                </svg>
+                Dashboard
               </button>
+
               <button
                 onClick={() => navigate("/upload-job")}
-                style={{
-                  background: location.pathname === "/upload-job" ? "rgba(255,255,255,0.25)" : "transparent",
-                  color: "#fff",
-                  border: "1px solid rgba(255,255,255,0.3)",
-                  padding: "7px 12px",
-                  borderRadius: "8px",
-                  cursor: "pointer",
-                  fontWeight: "600",
-                  fontSize: "13px"
-                }}
+                className={`nav-link-btn ${location.pathname === "/upload-job" ? "active" : ""}`}
               >
-                ➕ Create Job
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14"/>
+                  <path d="M12 5v14"/>
+                </svg>
+                Post Job
               </button>
+            </>
+          ) : (
+            /* Candidate Navigation */
+            <>
+              <button
+                onClick={() => navigate("/candidate")}
+                className={`nav-link-btn ${location.pathname === "/candidate" || location.pathname === "/" ? "active" : ""}`}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"/>
+                  <path d="m21 21-4.3-4.3"/>
+                </svg>
+                Open Positions
+              </button>
+
               <button
                 onClick={() => navigate("/upload-resume")}
-                style={{
-                  background: location.pathname === "/upload-resume" ? "rgba(255,255,255,0.25)" : "transparent",
-                  color: "#fff",
-                  border: "1px solid rgba(255,255,255,0.3)",
-                  padding: "7px 12px",
-                  borderRadius: "8px",
-                  cursor: "pointer",
-                  fontWeight: "600",
-                  fontSize: "13px"
-                }}
+                className={`nav-link-btn ${location.pathname === "/upload-resume" ? "active" : ""}`}
               >
-                📤 Upload Resume
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" x2="12" y1="3" y2="15"/>
+                </svg>
+                Submit Application
               </button>
             </>
           )}
 
-          <span style={{ fontSize: "13px", opacity: 0.9, padding: "0 6px", borderLeft: "1px solid rgba(255,255,255,0.2)" }}>
-            👤 {localStorage.getItem("name") || "User"} <strong style={{ textTransform: "uppercase", fontSize: "11px", background: "rgba(255,255,255,0.2)", padding: "2px 6px", borderRadius: "4px", marginLeft: "4px" }}>{role}</strong>
-          </span>
+          {/* User Profile Pill */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "5px 10px",
+              borderRadius: "6px",
+              backgroundColor: "var(--slate-800)",
+              border: "1px solid var(--slate-700)",
+              marginLeft: "6px"
+            }}
+          >
+            <div
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: "50%",
+                backgroundColor: isHR ? "#3b82f6" : "#10b981",
+                color: "#ffffff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "11px",
+                fontWeight: "700"
+              }}
+            >
+              {(localStorage.getItem("name") || "U").charAt(0).toUpperCase()}
+            </div>
+            <span style={{ fontSize: "13px", fontWeight: "600", color: "#f1f5f9" }}>
+              {localStorage.getItem("name") || "User"}
+            </span>
+            <span
+              style={{
+                fontSize: "10px",
+                fontWeight: "700",
+                textTransform: "uppercase",
+                padding: "2px 5px",
+                borderRadius: "3px",
+                backgroundColor: isHR ? "rgba(59, 130, 246, 0.2)" : "rgba(16, 185, 129, 0.2)",
+                color: isHR ? "#93c5fd" : "#6ee7b7",
+                border: `1px solid ${isHR ? "rgba(59, 130, 246, 0.3)" : "rgba(16, 185, 129, 0.3)"}`
+              }}
+            >
+              {role}
+            </span>
+          </div>
 
+          {/* Logout Button */}
           <button
             onClick={handleLogout}
             style={{
-              background: "#ef4444",
-              color: "#fff",
-              border: "none",
-              padding: "7px 14px",
-              borderRadius: "8px",
-              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "5px",
+              padding: "7px 12px",
+              borderRadius: "6px",
+              fontSize: "12px",
               fontWeight: "600",
-              fontSize: "13px"
+              color: "#fca5a5",
+              backgroundColor: "rgba(239, 68, 68, 0.12)",
+              border: "1px solid rgba(239, 68, 68, 0.25)",
+              cursor: "pointer",
+              transition: "all 0.15s ease"
             }}
+            onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 0.25)")}
+            onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 0.12)")}
           >
-            Logout
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" x2="9" y1="12" y2="12"/>
+            </svg>
+            Sign Out
           </button>
         </div>
       </header>
 
-      {/* 🎯 APPLICATION ROUTES */}
-      <main style={{ flex: 1 }}>
+      {/* Application Routing */}
+      <main style={{ flex: 1, paddingBottom: 40 }}>
         <Routes>
-          {role === "hr" ? (
+          {isHR ? (
             <>
               <Route path="/" element={<Dashboard />} />
               <Route path="/upload-job" element={<UploadJob />} />
-              <Route path="/upload-resume" element={<UploadResume />} />
+              {/* HR should not access upload-resume; redirect cleanly to Dashboard */}
+              <Route path="/upload-resume" element={<Navigate to="/" replace />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </>
           ) : (
             <>
               <Route path="/" element={<CandidatePage />} />
               <Route path="/candidate" element={<CandidatePage />} />
+              <Route path="/upload-resume" element={<UploadResume />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </>
           )}

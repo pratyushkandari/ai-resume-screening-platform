@@ -52,23 +52,23 @@ export default function Login({ setRole }) {
     const password = form.password;
 
     if (!email || !password || (isRegister && !form.name.trim())) {
-      setMsg("⚠️ Please complete all required fields.");
+      setMsg("Please complete all required fields.");
       return;
     }
 
     const emailRegex = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
     if (!emailRegex.test(email)) {
-      setMsg("❌ Invalid email format (e.g. user@company.com).");
+      setMsg("Please enter a valid email address.");
       return;
     }
 
     if (isRegister) {
       if (form.name.trim().length < 2) {
-        setMsg("❌ Full name must be at least 2 characters.");
+        setMsg("Full name must be at least 2 characters.");
         return;
       }
       if (passwordScore < 5) {
-        setMsg("❌ Please fulfill all password security criteria.");
+        setMsg("Password must meet all complexity requirements.");
         return;
       }
     }
@@ -76,8 +76,6 @@ export default function Login({ setRole }) {
     setLoading(true);
 
     try {
-      const fd = new FormData();
-
       if (isRegister) {
         const payload = {
           name: form.name.trim(),
@@ -89,7 +87,7 @@ export default function Login({ setRole }) {
         if (res.data?.access_token) {
           localStorage.setItem("token", res.data.access_token);
         }
-        setMsg("✅ Account registered successfully! Please sign in.");
+        setMsg("Account registered successfully. Please sign in.");
         setIsRegister(false);
       } else {
         const payload = {
@@ -98,28 +96,22 @@ export default function Login({ setRole }) {
         };
         const res = await api.post("/api/login", payload);
         const loggedRole = (res.data.role || "").toLowerCase().trim();
-        const userId = res.data.user_id;
-        const token = res.data.access_token;
 
-        if (!userId || !loggedRole) {
-          setMsg("❌ Invalid session response received from server.");
-          setLoading(false);
-          return;
-        }
-
-        // Store JWT Bearer token & user profile
-        if (token) {
-          localStorage.setItem("token", token);
-        }
+        localStorage.setItem("token", res.data.access_token);
         localStorage.setItem("role", loggedRole);
-        localStorage.setItem("name", res.data.name || "User");
-        localStorage.setItem("user_id", String(userId));
+        localStorage.setItem("user_id", String(res.data.user_id));
+        localStorage.setItem("name", res.data.name || "");
 
         setRole(loggedRole);
-        navigate(loggedRole === "hr" ? "/" : "/candidate");
+
+        if (loggedRole === "hr") {
+          navigate("/");
+        } else {
+          navigate("/candidate");
+        }
       }
     } catch (e) {
-      let errorMsg = "Authentication failed. Please verify credentials.";
+      let errorMsg = "Authentication failed. Please check your credentials.";
       if (e.response?.data?.detail) {
         if (typeof e.response.data.detail === "string") {
           errorMsg = e.response.data.detail;
@@ -131,10 +123,29 @@ export default function Login({ setRole }) {
       } else if (e.message) {
         errorMsg = e.message;
       }
-      setMsg("❌ " + errorMsg);
+      setMsg(errorMsg);
     } finally {
       setLoading(false);
     }
+  };
+
+  const labelStyle = {
+    display: "block",
+    fontSize: "12px",
+    fontWeight: "600",
+    color: "#334155",
+    marginBottom: "5px"
+  };
+
+  const inputStyle = {
+    width: "100%",
+    padding: "10px 12px",
+    fontSize: "14px",
+    borderRadius: "6px",
+    border: "1px solid #cbd5e1",
+    backgroundColor: "#ffffff",
+    boxSizing: "border-box",
+    outline: "none"
   };
 
   return (
@@ -144,7 +155,8 @@ export default function Login({ setRole }) {
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        background: "linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #312e81 100%)",
+        backgroundColor: "#0f172a",
+        backgroundImage: "radial-gradient(at 0% 0%, #1e293b 0px, transparent 50%), radial-gradient(at 100% 100%, #1e3a8a 0px, transparent 50%)",
         padding: 20
       }}
     >
@@ -153,24 +165,59 @@ export default function Login({ setRole }) {
           width: "100%",
           maxWidth: 420,
           padding: 32,
-          borderRadius: 20,
-          background: "rgba(255,255,255,0.98)",
-          boxShadow: "0 25px 60px rgba(0,0,0,0.3)",
-          backdropFilter: "blur(16px)"
+          borderRadius: 16,
+          backgroundColor: "#ffffff",
+          boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.2)"
         }}
       >
-        <div style={{ textAlign: "center", marginBottom: 20 }}>
-          <div style={{ fontSize: 38 }}>⚡</div>
-          <h2 style={{ margin: "6px 0", fontWeight: "800", color: "#0f172a", fontSize: "24px" }}>
-            {isRegister ? "Create Your Account" : "Enterprise Portal Sign In"}
+        {/* Brand Header */}
+        <div style={{ textAlign: "center", marginBottom: 24 }}>
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 10,
+              backgroundColor: "#2563eb",
+              color: "#ffffff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: "0 auto 12px auto",
+              boxShadow: "0 4px 12px rgba(37, 99, 235, 0.3)"
+            }}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <rect width="20" height="14" x="2" y="7" rx="2" ry="2"/>
+              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+            </svg>
+          </div>
+          <h2 style={{ margin: "0 0 4px 0", fontWeight: "800", color: "#0f172a", fontSize: "22px", letterSpacing: "-0.02em" }}>
+            {isRegister ? "Create Your Account" : "Sign In to TalentFlow"}
           </h2>
           <p style={{ fontSize: "13px", color: "#64748b", margin: 0 }}>
-            {isRegister ? "Join the high-speed recruitment & screening engine" : "Access your AI-ranked candidates & job matches"}
+            {isRegister ? "Recruitment screening and candidate matching platform" : "Enter your credentials to access your workspace"}
           </p>
         </div>
 
+        {/* Message Notice */}
+        {msg && (
+          <div
+            style={{
+              padding: "10px 14px",
+              borderRadius: 6,
+              fontSize: "13px",
+              marginBottom: 16,
+              backgroundColor: msg.includes("success") || msg.includes("registered") ? "#ecfdf5" : "#fff1f2",
+              color: msg.includes("success") || msg.includes("registered") ? "#047857" : "#be123c",
+              border: `1px solid ${msg.includes("success") || msg.includes("registered") ? "#a7f3d0" : "#fecdd3"}`
+            }}
+          >
+            {msg}
+          </div>
+        )}
+
         {isRegister && (
-          <div style={{ marginBottom: 12 }}>
+          <div style={{ marginBottom: 14 }}>
             <label style={labelStyle}>Full Name</label>
             <input
               name="name"
@@ -182,8 +229,8 @@ export default function Login({ setRole }) {
           </div>
         )}
 
-        <div style={{ marginBottom: 12 }}>
-          <label style={labelStyle}>Work / Professional Email</label>
+        <div style={{ marginBottom: 14 }}>
+          <label style={labelStyle}>Email Address</label>
           <input
             name="email"
             type="email"
@@ -194,7 +241,7 @@ export default function Login({ setRole }) {
           />
         </div>
 
-        <div style={{ marginBottom: 12, position: "relative" }}>
+        <div style={{ marginBottom: 14, position: "relative" }}>
           <label style={labelStyle}>Password</label>
           <div style={{ position: "relative" }}>
             <input
@@ -217,139 +264,124 @@ export default function Login({ setRole }) {
                 background: "transparent",
                 border: "none",
                 cursor: "pointer",
-                fontSize: 16,
-                color: "#64748b"
+                color: "#64748b",
+                display: "flex",
+                alignItems: "center"
               }}
             >
-              {showPassword ? "🙈" : "👁️"}
+              {showPassword ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              )}
             </button>
           </div>
-
-          {/* Interactive Password Strength Meter for Registration */}
-          {isRegister && form.password && (
-            <div style={{ marginTop: 8 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontWeight: 700, color: strengthConfig.color, marginBottom: 4 }}>
-                <span>Security Level</span>
-                <span>{strengthConfig.label}</span>
-              </div>
-              <div style={{ width: "100%", height: 5, background: "#e2e8f0", borderRadius: 4, overflow: "hidden" }}>
-                <div style={{ width: strengthConfig.width, height: "100%", background: strengthConfig.color, transition: "all 0.3s ease" }} />
-              </div>
-
-              {/* Requirement Checkpoints */}
-              <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, fontSize: 11 }}>
-                <span style={{ color: passwordCriteria.minLength ? "#10b981" : "#94a3b8" }}>
-                  {passwordCriteria.minLength ? "✓" : "○"} 8+ Characters
-                </span>
-                <span style={{ color: passwordCriteria.hasUpper ? "#10b981" : "#94a3b8" }}>
-                  {passwordCriteria.hasUpper ? "✓" : "○"} Uppercase (A-Z)
-                </span>
-                <span style={{ color: passwordCriteria.hasLower ? "#10b981" : "#94a3b8" }}>
-                  {passwordCriteria.hasLower ? "✓" : "○"} Lowercase (a-z)
-                </span>
-                <span style={{ color: passwordCriteria.hasNumber ? "#10b981" : "#94a3b8" }}>
-                  {passwordCriteria.hasNumber ? "✓" : "○"} Numeric Digit (0-9)
-                </span>
-                <span style={{ color: passwordCriteria.hasSpecial ? "#10b981" : "#94a3b8", gridColumn: "span 2" }}>
-                  {passwordCriteria.hasSpecial ? "✓" : "○"} Special Character (!@#$...)
-                </span>
-              </div>
-            </div>
-          )}
         </div>
 
-        {isRegister && (
-          <div style={{ marginBottom: 12 }}>
-            <label style={labelStyle}>Portal Account Type</label>
-            <select
-              name="role"
-              value={form.role}
-              onChange={handleChange}
-              style={inputStyle}
-            >
-              <option value="candidate">Candidate (Job Seeker / Resume Submissions)</option>
-              <option value="hr">HR / Recruiter (Post Jobs & AI Screening)</option>
-            </select>
+        {/* Password Strength Indicator (Registration Only) */}
+        {isRegister && form.password && (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: 4, fontWeight: 600 }}>
+              <span style={{ color: "#64748b" }}>Security Strength:</span>
+              <span style={{ color: strengthConfig.color }}>{strengthConfig.label}</span>
+            </div>
+            <div style={{ width: "100%", height: 4, backgroundColor: "#f1f5f9", borderRadius: 2, overflow: "hidden" }}>
+              <div style={{ width: strengthConfig.width, height: "100%", backgroundColor: strengthConfig.color, transition: "all 0.2s" }} />
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, marginTop: 8, fontSize: "11px" }}>
+              <span style={{ color: passwordCriteria.minLength ? "#059669" : "#94a3b8" }}>
+                {passwordCriteria.minLength ? "✓" : "•"} Min 8 characters
+              </span>
+              <span style={{ color: passwordCriteria.hasUpper ? "#059669" : "#94a3b8" }}>
+                {passwordCriteria.hasUpper ? "✓" : "•"} Uppercase (A-Z)
+              </span>
+              <span style={{ color: passwordCriteria.hasLower ? "#059669" : "#94a3b8" }}>
+                {passwordCriteria.hasLower ? "✓" : "•"} Lowercase (a-z)
+              </span>
+              <span style={{ color: passwordCriteria.hasNumber ? "#059669" : "#94a3b8" }}>
+                {passwordCriteria.hasNumber ? "✓" : "•"} Number (0-9)
+              </span>
+              <span style={{ color: passwordCriteria.hasSpecial ? "#059669" : "#94a3b8", gridColumn: "span 2" }}>
+                {passwordCriteria.hasSpecial ? "✓" : "•"} Special character (!@#$%...)
+              </span>
+            </div>
           </div>
         )}
 
+        {/* Role Selector (Registration Only) */}
+        {isRegister && (
+          <div style={{ marginBottom: 18 }}>
+            <label style={labelStyle}>Account Role</label>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, role: "candidate" })}
+                style={{
+                  padding: "8px",
+                  borderRadius: "6px",
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  backgroundColor: form.role === "candidate" ? "#eff6ff" : "#f8fafc",
+                  color: form.role === "candidate" ? "#1d4ed8" : "#64748b",
+                  border: `1.5px solid ${form.role === "candidate" ? "#3b82f6" : "#e2e8f0"}`
+                }}
+              >
+                Candidate
+              </button>
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, role: "hr" })}
+                style={{
+                  padding: "8px",
+                  borderRadius: "6px",
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  backgroundColor: form.role === "hr" ? "#eff6ff" : "#f8fafc",
+                  color: form.role === "hr" ? "#1d4ed8" : "#64748b",
+                  border: `1.5px solid ${form.role === "hr" ? "#3b82f6" : "#e2e8f0"}`
+                }}
+              >
+                Recruiter / HR
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Submit Button */}
         <button
           onClick={submit}
           disabled={loading}
-          style={{
-            marginTop: 18,
-            width: "100%",
-            padding: "13px",
-            background: loading ? "#94a3b8" : "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
-            color: "#fff",
-            border: "none",
-            borderRadius: 10,
-            fontWeight: "700",
-            fontSize: "14px",
-            cursor: loading ? "not-allowed" : "pointer",
-            boxShadow: "0 4px 14px rgba(37,99,235,0.3)",
-            transition: "all 0.2s"
-          }}
+          className="btn btn-primary"
+          style={{ width: "100%", padding: "11px", fontSize: "14px", fontWeight: 700 }}
         >
-          {loading ? "Authenticating..." : isRegister ? "Create Secure Account" : "Sign In to Platform"}
+          {loading ? "Authenticating..." : isRegister ? "Create Account" : "Sign In"}
         </button>
 
-        {msg && (
-          <div
+        {/* Toggle Mode */}
+        <div style={{ textAlign: "center", marginTop: 18, fontSize: "13px", color: "#64748b" }}>
+          {isRegister ? "Already have an account?" : "Don't have an account yet?"}{" "}
+          <button
+            type="button"
+            onClick={() => {
+              setIsRegister(!isRegister);
+              setMsg("");
+            }}
             style={{
-              marginTop: 16,
-              fontSize: 13,
-              textAlign: "center",
-              padding: "10px",
-              borderRadius: "8px",
-              background: msg.includes("❌") || msg.includes("⚠️") ? "#fee2e2" : "#dcfce7",
-              color: msg.includes("❌") || msg.includes("⚠️") ? "#dc2626" : "#16a34a",
-              fontWeight: "600",
-              border: `1px solid ${msg.includes("❌") || msg.includes("⚠️") ? "#fca5a5" : "#86efac"}`
+              background: "transparent",
+              border: "none",
+              color: "#2563eb",
+              fontWeight: 700,
+              cursor: "pointer",
+              padding: 0
             }}
           >
-            {msg}
-          </div>
-        )}
-
-        <div
-          style={{
-            marginTop: 22,
-            textAlign: "center",
-            cursor: "pointer",
-            color: "#2563eb",
-            fontWeight: 700,
-            fontSize: "13px"
-          }}
-          onClick={() => {
-            setMsg("");
-            setIsRegister(!isRegister);
-          }}
-        >
-          {isRegister ? "Already registered? Sign In" : "Need an account? Register Here"}
+            {isRegister ? "Sign In" : "Register Now"}
+          </button>
         </div>
       </div>
     </div>
   );
 }
-
-const labelStyle = {
-  display: "block",
-  fontSize: "12px",
-  fontWeight: "700",
-  color: "#334155",
-  marginBottom: "4px"
-};
-
-const inputStyle = {
-  width: "100%",
-  padding: "10px 12px",
-  borderRadius: 8,
-  border: "1px solid #cbd5e1",
-  outline: "none",
-  fontSize: 14,
-  boxSizing: "border-box",
-  color: "#0f172a",
-  background: "#f8fafc",
-  transition: "border 0.2s"
-};

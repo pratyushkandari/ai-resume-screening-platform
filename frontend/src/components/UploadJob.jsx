@@ -33,16 +33,15 @@ export default function UploadJob() {
     const cleanDesc = description.trim();
 
     if (cleanTitle.length < 3 || cleanTitle.length > 120) {
-      toast.warn("⚠️ Job title must be between 3 and 120 characters.");
+      toast.warn("Job title must be between 3 and 120 characters.");
       return;
     }
 
     if (cleanDesc.length < 20) {
-      toast.warn("⚠️ Job description must be at least 20 characters describing requirements.");
+      toast.warn("Job description must be at least 20 characters describing requirements.");
       return;
     }
 
-    // Merge any remaining input in skillsText
     let finalSkills = [...skillList];
     if (skillsText.trim()) {
       const extra = skillsText
@@ -53,7 +52,7 @@ export default function UploadJob() {
     }
 
     if (finalSkills.length === 0) {
-      toast.warn("⚠️ Please specify at least one required skill (e.g. Python, Docker).");
+      toast.warn("Please specify at least one required skill (e.g. Python, Docker).");
       return;
     }
 
@@ -62,14 +61,14 @@ export default function UploadJob() {
     const user_id = Number(raw_user_id);
 
     if (!raw_user_id || isNaN(user_id) || user_id <= 0) {
-      toast.error("❌ Session expired. Please login again.");
+      toast.error("Session expired. Please sign in again.");
       localStorage.clear();
       navigate("/");
       return;
     }
 
     if (role !== "hr") {
-      toast.error("❌ Access restricted: Only HR recruiters can create job postings.");
+      toast.error("Access restricted: Only recruiters can create job postings.");
       navigate("/");
       return;
     }
@@ -85,35 +84,30 @@ export default function UploadJob() {
       const res = await api.post("/api/jobs", fd);
       const jobId = res?.data?.job_id;
 
-      toast.success(`✅ Job requisition published successfully! (Requisition ID: #${jobId})`);
-
-      if (jobId) {
-        navigate(`/upload-resume?jobId=${jobId}`);
-      } else {
-        navigate("/");
-      }
+      toast.success(`Position published successfully (REQ-#${jobId})`);
+      navigate("/", { state: { selectedJobId: jobId } });
     } catch (err) {
       console.error("Create job error", err);
-      const detail = err?.response?.data?.detail || err?.message || "Failed to create job";
-      toast.error(`❌ ${detail}`);
+      const detail = err?.response?.data?.detail || err?.message || "Failed to create job requisition";
+      toast.error(detail);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div style={{ padding: 24, maxWidth: 840, margin: "0 auto" }}>
-      <div className="card" style={{ boxShadow: "0 10px 30px rgba(0,0,0,0.06)", borderRadius: 16 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+    <div style={{ padding: "28px 32px", maxWidth: 840, margin: "0 auto" }}>
+      <div className="card" style={{ padding: 28 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
           <div>
-            <h2 style={{ margin: "0 0 4px 0", fontSize: 22, color: "#0f172a", fontWeight: 800 }}>
-              ➕ Create Job Requisition
+            <h2 style={{ margin: 0, fontSize: 22, color: "#0f172a", fontWeight: 800 }}>
+              Post a New Position
             </h2>
-            <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>
-              Publish open vacancies with target skill profiles for automated AI candidate screening
+            <p style={{ margin: "4px 0 0 0", fontSize: 13, color: "#64748b" }}>
+              Define position requirements and required technical competencies for candidate evaluation.
             </p>
           </div>
-          <button onClick={() => navigate("/")} className="btn ghost" style={{ padding: "8px 14px" }}>
+          <button onClick={() => navigate("/")} className="btn btn-ghost" style={{ fontSize: 13 }}>
             ← Back to Dashboard
           </button>
         </div>
@@ -121,18 +115,18 @@ export default function UploadJob() {
         <form onSubmit={handleSubmit} style={{ display: "grid", gap: 18 }}>
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-              <label className="small" style={{ fontWeight: 700, color: "#1e293b" }}>
+              <label className="input-label" style={{ margin: 0 }}>
                 Job Title *
               </label>
-              <span className="small" style={{ color: title.length > 120 ? "#ef4444" : "#64748b" }}>
-                {title.length}/120 characters (min 3)
+              <span style={{ fontSize: 12, color: title.length > 120 ? "#ef4444" : "#64748b" }}>
+                {title.length}/120 characters
               </span>
             </div>
             <input
               className="input"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Senior Machine Learning & Backend Engineer"
+              placeholder="e.g. Senior Machine Learning Engineer"
               maxLength={120}
               required
             />
@@ -140,11 +134,11 @@ export default function UploadJob() {
 
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-              <label className="small" style={{ fontWeight: 700, color: "#1e293b" }}>
+              <label className="input-label" style={{ margin: 0 }}>
                 Job Description & Scope *
               </label>
-              <span className="small" style={{ color: description.length < 20 ? "#f59e0b" : "#10b981" }}>
-                {description.length}/10,000 chars (min 20)
+              <span style={{ fontSize: 12, color: description.length < 20 ? "#d97706" : "#059669" }}>
+                {description.length} chars (min 20)
               </span>
             </div>
             <textarea
@@ -152,22 +146,22 @@ export default function UploadJob() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={6}
-              placeholder="Provide role overview, core responsibilities, qualifications, and tech stack details..."
+              placeholder="Outline the core responsibilities, qualifications, and target technical domain..."
               required
             />
           </div>
 
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-              <label className="small" style={{ fontWeight: 700, color: "#1e293b" }}>
-                Target Required Skills ({skillList.length} defined) *
+              <label className="input-label" style={{ margin: 0 }}>
+                Required Technical Competencies ({skillList.length}) *
               </label>
-              <span className="small" style={{ color: "#64748b" }}>
+              <span style={{ fontSize: 12, color: "#64748b" }}>
                 Press Enter or Comma to add tags
               </span>
             </div>
 
-            {/* Interactive Skill Chips */}
+            {/* Skill Tags */}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
               {skillList.map((skill) => (
                 <span
@@ -176,13 +170,13 @@ export default function UploadJob() {
                     display: "inline-flex",
                     alignItems: "center",
                     gap: 6,
-                    background: "#eff6ff",
+                    backgroundColor: "#eff6ff",
                     color: "#1d4ed8",
                     border: "1px solid #bfdbfe",
                     padding: "4px 10px",
                     borderRadius: 20,
                     fontSize: 12,
-                    fontWeight: 700
+                    fontWeight: 600
                   }}
                 >
                   {skill}
@@ -192,12 +186,14 @@ export default function UploadJob() {
                     style={{
                       background: "transparent",
                       border: "none",
-                      color: "#ef4444",
+                      color: "#93c5fd",
                       cursor: "pointer",
-                      fontWeight: 900,
+                      fontWeight: 700,
                       padding: 0,
                       lineHeight: 1
                     }}
+                    onMouseOver={(e) => (e.currentTarget.style.color = "#ef4444")}
+                    onMouseOut={(e) => (e.currentTarget.style.color = "#93c5fd")}
                   >
                     ×
                   </button>
@@ -210,29 +206,26 @@ export default function UploadJob() {
               value={skillsText}
               onChange={(e) => setSkillsText(e.target.value)}
               onKeyDown={handleAddSkill}
-              placeholder="Type skill name and press Enter (e.g. pytorch, redis, kubernetes)"
+              placeholder="Type competency and press Enter (e.g. PyTorch, Redis, Kubernetes)"
             />
-            <span className="small" style={{ color: "#64748b", marginTop: 4, display: "block" }}>
-              💡 Skills will be used for exact keyword overlap and vector coverage radar charts.
+            <span style={{ fontSize: 12, color: "#64748b", marginTop: 4, display: "block" }}>
+              Competencies are used for exact keyword matching and semantic vector scoring.
             </span>
           </div>
 
-          <div className="button-row" style={{ marginTop: 10, display: "flex", gap: 12 }}>
+          <div style={{ marginTop: 10, display: "flex", gap: 12 }}>
             <button
               type="submit"
               disabled={loading || title.trim().length < 3 || description.trim().length < 20}
-              className="btn"
-              style={{
-                padding: "12px 24px",
-                background: loading ? "#94a3b8" : "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)"
-              }}
+              className="btn btn-primary"
+              style={{ padding: "11px 24px", fontSize: 14 }}
             >
-              {loading ? "Publishing Requisition..." : "🚀 Publish Requisition & Ingest Resumes"}
+              {loading ? "Publishing Position..." : "Publish Position"}
             </button>
 
             <button
               type="button"
-              className="btn secondary"
+              className="btn btn-secondary"
               onClick={() => {
                 setTitle("");
                 setDescription("");
@@ -240,7 +233,7 @@ export default function UploadJob() {
                 setSkillList(["python", "sql", "fastapi"]);
               }}
             >
-              Reset Form
+              Reset
             </button>
           </div>
         </form>

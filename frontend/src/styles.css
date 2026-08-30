@@ -1,326 +1,384 @@
+/* =============================================================================
+   TalentFlow ATS - Enterprise Design System & Utility Styles
+   ============================================================================= */
 
 :root {
-  /* Background colors and theme shades */
-  --bg: #f5f7fb;             /* Light gray-blue background for main pages */
-  --card-bg: #ffffff;        /* Default white background for cards */
-  --accent: #2563eb;         /* Main blue accent color (matches header, buttons) */
-  --accent-600: #1e40af;     /* Darker shade of blue for hover states */
-  --muted: #6b7280;          /* Gray for subtitles, labels, etc. */
-  --success: #10b981;        /* Green for success badges or positive alerts */
-  --danger: #ef4444;         /* Red for errors or “missing” skill chips */
-  --glass: rgba(255,255,255,0.6); /* Used for translucent/glass effects */
-  --radius: 12px;            /* Default corner roundness (border-radius) */
-  --shadow-sm: 0 6px 18px rgba(15,23,42,0.06); /* Light shadow for floating cards */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  
+  /* Color Palette */
+  --bg-main: #f8fafc;
+  --bg-card: #ffffff;
+  --border-subtle: #e2e8f0;
+  --border-focus: #3b82f6;
+  
+  --primary-50: #eff6ff;
+  --primary-100: #dbeafe;
+  --primary-500: #3b82f6;
+  --primary-600: #2563eb;
+  --primary-700: #1d4ed8;
+  
+  --slate-50: #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-300: #cbd5e1;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;
+  
+  --emerald-50: #ecfdf5;
+  --emerald-100: #d1fae5;
+  --emerald-600: #059669;
+  --emerald-700: #047857;
+  
+  --rose-50: #fff1f2;
+  --rose-100: #ffe4e6;
+  --rose-600: #e11d48;
+  --rose-700: #be123c;
+  
+  --amber-50: #fffbeb;
+  --amber-600: #d97706;
+  
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 9999px;
+  
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
 }
 
-
-
-* { box-sizing: border-box }
-
-/* Ensures full height layout (100% screen height for app root) */
-html, body, #root { height: 100% }
-
-/* Base body styles: font, colors, background, and text smoothing */
-body {
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+* {
+  box-sizing: border-box;
   margin: 0;
-  background: linear-gradient(180deg, #eef2ff 0%, var(--bg) 100%);
-  color: #0f172a;
-  -webkit-font-smoothing: antialiased; /* Smooth fonts on Chrome/Edge (Windows) */
-  -moz-osx-font-smoothing: grayscale;  /* Smooth fonts on Firefox */
-  line-height: 1.45;
-}
-
-
-/* =============================================================================================
-🧭 HEADER BAR STYLING
-=============================================================================================*/
-.header {
-  background: linear-gradient(90deg, var(--accent-600), #1f2937); /* Blue → dark gradient */
-  color: white;
-  padding: 14px 20px;
-  display: flex;
-  gap: 18px;
-  align-items: center;
-  justify-content: space-between;
-  box-shadow: 0 6px 20px rgba(16,24,40,0.08); /* Subtle shadow under header */
-}
-
-/* Brand title in header (“ResumeMatcher”) */
-.header .brand {
-  font-weight: 800;
-  font-size: 18px;
-  letter-spacing: 0.2px;
-}
-
-/* Navigation links in header */
-.header nav a {
-  color: #e6f0ff;
-  margin-right: 14px;
-  text-decoration: none;
-  font-weight: 600;
-}
-.header nav a:hover {
-  color: white;
-  text-decoration: underline; /* underline on hover */
-}
-
-
-/* =============================================================================================
-🏗️ MAIN PAGE CONTAINER
-=============================================================================================*/
-.container {
-  max-width: 1200px;  /* limits page width for large screens */
-  margin: 24px auto;  /* centers the content horizontally */
-  padding: 0 16px;    /* side padding for spacing */
-}
-
-
-/* =============================================================================================
-📦 CARD COMPONENTS (used in Dashboard, UploadJob, UploadResume)
-=============================================================================================*/
-.card {
-  background: var(--card-bg);
-  border-radius: var(--radius);
-  padding: 16px;
-  box-shadow: var(--shadow-sm);
-  margin-bottom: 18px;
-  border: 1px solid rgba(15,23,42,0.03); /* very light border */
-}
-
-/* Layout for side-by-side sections (e.g. charts + info) */
-.grid {
-  display: grid;
-  grid-template-columns: 1fr 420px; /* main + sidebar */
-  gap: 18px;
-  align-items: start;
-}
-
-/* Responsive layout for smaller screens */
-@media (max-width: 980px) {
-  .grid { grid-template-columns: 1fr; } /* stack columns vertically */
-}
-
-/* Card titles */
-.card-title {
-  font-weight: 700;
-  font-size: 18px;
-  margin-bottom: 8px;
-  color: #0f172a;
-}
-
-/* Smaller subtitle text */
-.small {
-  font-size: 13px;
-  color: var(--muted);
-}
-
-
-/* =============================================================================================
-🎯 INPUTS, TEXTAREAS, SELECT DROPDOWNS
-=============================================================================================*/
-.input, textarea, select {
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid #eef2ff;
-  width: 100%;
-  font-size: 14px;
-  background: #fbfdff;
-}
-
-
-/* =============================================================================================
-🔘 BUTTONS (primary, secondary, ghost)
-=============================================================================================*/
-
-/* Primary button (blue) */
-.btn {
-  background: var(--accent);
-  color: white;
-  border: none;
-  padding: 10px 14px;
-  border-radius: 10px;
-  cursor: pointer;
-  font-weight: 600;
-  box-shadow: 0 6px 16px rgba(37,99,235,0.12);
-}
-
-/* Secondary button (gray, used for “View”, etc.) */
-.btn.secondary {
-  background: #6b7280;
-  box-shadow: none;
-}
-
-/* Ghost button (transparent border style) */
-.btn.ghost {
-  background: transparent;
-  color: var(--accent-600);
-  border: 1px solid rgba(37,99,235,0.08);
-}
-
-/* Horizontal button rows */
-.button-row {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-
-
-/* =============================================================================================
- FILE INFO + SUCCESS BADGE
-=============================================================================================*/
-
-/* File upload details (file name, size) */
-.file-info {
-  font-size: 13px;
-  margin-top: 8px;
-  color: var(--muted);
-}
-
-/* Green badge (used after successful uploads) */
-.success-badge {
-  color: white;
-  background: var(--success);
-  padding: 6px 10px;
-  border-radius: 999px; /* fully rounded pill shape */
-  font-weight: 700;
-  display: inline-block;
-  font-size: 13px;
-}
-
-
-/* =============================================================================================
- RANKED CANDIDATES LIST + CARD GRID
-=============================================================================================*/
-.ranked {
-  list-style: none;
   padding: 0;
-  margin: 0;
 }
-.ranked li {
-  padding: 10px 8px;
-  border-bottom: 1px dashed #f2f5fb;
+
+html, body, #root {
+  height: 100%;
+  font-family: var(--font-sans);
+  background-color: var(--bg-main);
+  color: var(--slate-900);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Typography Defaults */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--slate-900);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+p {
+  color: var(--slate-600);
+  line-height: 1.5;
+}
+
+/* Header Component */
+.app-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 14px 28px;
+  background-color: var(--slate-900);
+  border-bottom: 1px solid var(--slate-800);
+  position: sticky;
+  top: 0;
+  z-index: 50;
 }
 
-/* Flexible grid layout for candidate cards */
+.brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.brand-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--primary-500), var(--primary-700));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+}
+
+.brand-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.03em;
+}
+
+.brand-badge {
+  font-size: 11px;
+  font-weight: 600;
+  background-color: var(--slate-800);
+  color: var(--primary-100);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+  border: 1px solid var(--slate-700);
+}
+
+.nav-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--slate-300);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.nav-link-btn:hover {
+  color: #ffffff;
+  background-color: var(--slate-800);
+}
+
+.nav-link-btn.active {
+  color: #ffffff;
+  background-color: var(--slate-800);
+  border-color: var(--slate-700);
+}
+
+/* Standard UI Cards */
+.card {
+  background-color: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease;
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.card-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--slate-900);
+}
+
+.card-subtitle {
+  font-size: 13px;
+  color: var(--slate-500);
+  margin-top: 2px;
+}
+
+/* Stat Metrics Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-box {
+  background-color: var(--bg-card);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  padding: 16px 20px;
+  box-shadow: var(--shadow-xs);
+}
+
+.stat-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--slate-500);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--slate-900);
+  margin-top: 4px;
+}
+
+.stat-desc {
+  font-size: 12px;
+  color: var(--slate-400);
+  margin-top: 2px;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+  text-decoration: none;
+  font-family: inherit;
+}
+
+.btn-primary {
+  background-color: var(--primary-600);
+  color: #ffffff;
+  box-shadow: 0 1px 2px 0 rgba(37, 99, 235, 0.2);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--primary-700);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background-color: #ffffff;
+  color: var(--slate-700);
+  border-color: var(--slate-300);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--slate-50);
+  border-color: var(--slate-400);
+}
+
+.btn-ghost {
+  background-color: transparent;
+  color: var(--slate-600);
+}
+
+.btn-ghost:hover {
+  background-color: var(--slate-100);
+  color: var(--slate-900);
+}
+
+.btn-danger {
+  background-color: var(--rose-600);
+  color: #ffffff;
+}
+
+.btn-danger:hover {
+  background-color: var(--rose-700);
+}
+
+/* Form Controls */
+.input, textarea, select {
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-family: inherit;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--slate-300);
+  background-color: #ffffff;
+  color: var(--slate-900);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.input:focus, textarea:focus, select:focus {
+  border-color: var(--primary-600);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.input-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--slate-700);
+  margin-bottom: 6px;
+}
+
+/* Chip Tags */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.chip-neutral {
+  background-color: var(--slate-100);
+  color: var(--slate-700);
+  border: 1px solid var(--slate-200);
+}
+
+.chip-matched {
+  background-color: var(--emerald-50);
+  color: var(--emerald-700);
+  border: 1px solid var(--emerald-100);
+}
+
+.chip-missing {
+  background-color: var(--rose-50);
+  color: var(--rose-700);
+  border: 1px solid var(--rose-100);
+}
+
+/* Candidate Card */
+.candidate-item-card {
+  background-color: #ffffff;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: var(--shadow-xs);
+  transition: all 0.2s ease;
+}
+
+.candidate-item-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--slate-300);
+}
+
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
 }
 
-
-/* =============================================================================================
- CANDIDATE CARDS (used in Dashboard ranked list)
-=============================================================================================*/
-.cand-card {
-  border-radius: 10px;
-  padding: 12px;
-  background: linear-gradient(0deg, #fff, #fff);
-  border: 1px solid rgba(15,23,42,0.04);
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* Hover animation for candidate cards */
-.cand-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 18px 40px rgba(2,6,23,0.06);
+.fade-in {
+  animation: fadeIn 0.25s ease forwards;
 }
 
-/* Card header layout */
-.cand-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 8px;
+/* Responsiveness */
+@media (max-width: 768px) {
+  .app-header {
+    padding: 12px 16px;
+  }
+  .card-grid {
+    grid-template-columns: 1fr;
+  }
 }
-
-/* Candidate name */
-.cand-title {
-  font-weight: 700;
-  font-size: 16px;
-}
-
-/* Meta info (Score, Semantic, Skill) */
-.cand-meta {
-  font-size: 13px;
-  color: var(--muted);
-}
-
-
-/* =============================================================================================
- CHIPS (used for Matched / Missing Skills)
-=============================================================================================*/
-.chip {
-  display: inline-block;
-  padding: 6px 8px;
-  margin: 6px 6px 0 0;
-  border-radius: 8px;
-  font-size: 13px;
-}
-
-/* Green chip (matched skill) */
-.chip.matched {
-  background: #ecfdf5;
-  color: #065f46;
-  border: 1px solid rgba(6,95,70,0.06);
-}
-
-/* Red chip (missing skill) */
-.chip.missing {
-  background: #fff5f5;
-  color: #9b2c2c;
-  border: 1px solid rgba(139,29,29,0.06);
-}
-
-/* Blue link text (used for Download links) */
-.link {
-  color: var(--accent);
-  font-weight: 600;
-  text-decoration: underline;
-}
-
-
-/* =============================================================================================
- PROGRESS BAR (used during resume uploads)
-=============================================================================================*/
-.progress {
-  height: 8px;
-  background: #eef2ff;
-  border-radius: 8px;
-  overflow: hidden;
-  margin-top: 8px;
-  width: 100%;
-}
-
-/* Animated inner bar (grows as progress increases) */
-.progress > i {
-  display: block;
-  height: 100%;
-  background: linear-gradient(90deg, var(--accent), #0ea5a6);
-  width: 0%;
-  transition: width 0.18s ease;
-}
-
-
-/* =============================================================================================
- SMALL HELPER CLASSES (utility styles)
-=============================================================================================*/
-.center { text-align: center; }
-.row { display: flex; gap: 10px; align-items: center; }
-.padded { padding: 12px; }
-.footer-note { color: var(--muted); font-size: 13px; margin-top: 8px; }
-
-
-/* =============================================================================================
- RESPONSIVE DESIGN (mobile/tablet optimizations)
-=============================================================================================*/
-@media (max-width: 640px) {
-  .header { padding: 12px; }
-  .card { padding: 12px; }
-  .card-grid { grid-template-columns: 1fr; } /* single-column layout */
-}
-

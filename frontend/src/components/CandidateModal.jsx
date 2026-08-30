@@ -94,10 +94,15 @@ export default function CandidateModal({ candidate = null, jobSkills = [], onClo
               href={`${API_BASE_URL}/api/resumes/${candidate.resume_id}/download`}
               target="_blank"
               rel="noreferrer"
-              className="btn secondary"
+              className="btn btn-secondary"
               style={{ textDecoration: "none", padding: "8px 14px", fontSize: 13 }}
             >
-              📄 Download Resume
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" x2="12" y1="15" y2="3"/>
+              </svg>
+              Download Resume
             </a>
             <button
               onClick={onClose}
@@ -122,19 +127,19 @@ export default function CandidateModal({ candidate = null, jobSkills = [], onClo
           <div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
               <div style={{ background: "#f8fafc", padding: 12, borderRadius: 10, border: "1px solid #e2e8f0", textAlign: "center" }}>
-                <div className="small">AI Match Score</div>
+                <div className="small">Overall Match Score</div>
                 <div style={{ fontSize: 22, fontWeight: 800, color: "#2563eb", marginTop: 4 }}>
-                  {(candidate.score ?? 0).toFixed(3)}
+                  {Math.round((candidate.score ?? 0) * 100)}%
                 </div>
               </div>
               <div style={{ background: "#f8fafc", padding: 12, borderRadius: 10, border: "1px solid #e2e8f0", textAlign: "center" }}>
-                <div className="small">Skill Overlap</div>
+                <div className="small">Skill Fit</div>
                 <div style={{ fontSize: 22, fontWeight: 800, color: "#10b981", marginTop: 4 }}>
                   {Math.round((candidate.skill_score ?? 0) * 100)}%
                 </div>
               </div>
               <div style={{ background: "#f8fafc", padding: 12, borderRadius: 10, border: "1px solid #e2e8f0", textAlign: "center" }}>
-                <div className="small">Semantic Similarity</div>
+                <div className="small">Semantic Fit</div>
                 <div style={{ fontSize: 22, fontWeight: 800, color: "#8b5cf6", marginTop: 4 }}>
                   {Math.round((candidate.semantic ?? 0) * 100)}%
                 </div>
@@ -142,13 +147,13 @@ export default function CandidateModal({ candidate = null, jobSkills = [], onClo
             </div>
 
             <div style={{ marginBottom: 14 }}>
-              <div style={{ fontWeight: 700, fontSize: 14, color: "#166534", marginBottom: 6 }}>
-                ✅ Matched Skills:
+              <div style={{ fontWeight: 600, fontSize: 13, color: "#047857", marginBottom: 6 }}>
+                Matched Skills:
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {(candidate.matched_skills || []).length > 0 ? (
                   candidate.matched_skills.map((s) => (
-                    <span key={s} className="chip matched" style={{ margin: 0 }}>
+                    <span key={s} className="chip chip-matched">
                       {s}
                     </span>
                   ))
@@ -159,18 +164,18 @@ export default function CandidateModal({ candidate = null, jobSkills = [], onClo
             </div>
 
             <div>
-              <div style={{ fontWeight: 700, fontSize: 14, color: "#991b1b", marginBottom: 6 }}>
-                ❌ Missing Skills:
+              <div style={{ fontWeight: 600, fontSize: 13, color: "#be123c", marginBottom: 6 }}>
+                Identified Skill Gaps:
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {(candidate.missing_skills || []).length > 0 ? (
                   candidate.missing_skills.map((s) => (
-                    <span key={s} className="chip missing" style={{ margin: 0 }}>
+                    <span key={s} className="chip chip-missing">
                       {s}
                     </span>
                   ))
                 ) : (
-                  <span style={{ color: "#166534", fontSize: 13 }}>All required job skills are covered!</span>
+                  <span style={{ color: "#047857", fontSize: 13 }}>All required competencies are satisfied</span>
                 )}
               </div>
             </div>
