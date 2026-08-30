@@ -6,12 +6,19 @@ import math
 from typing import List, Tuple, Dict, Any, Optional
 import numpy as np
 
-# PyTorch / Sentence Transformers
-try:
-    from sentence_transformers import SentenceTransformer
-    MODEL = SentenceTransformer("all-MiniLM-L6-v2")
-except Exception:
-    MODEL = None
+# PyTorch / Sentence Transformers (Lazy Loaded to prevent container OOM / startup race conditions)
+_MODEL = None
+
+def get_model():
+    global _MODEL
+    if _MODEL is None:
+        try:
+            from sentence_transformers import SentenceTransformer
+            _MODEL = SentenceTransformer("all-MiniLM-L6-v2")
+        except Exception:
+            _MODEL = None
+    return _MODEL
+
 
 # Document Extractors
 try:
@@ -175,9 +182,10 @@ def embed_text(text: str) -> List[float]:
     if not text or not text.strip():
         return [0.0] * 384
 
-    if MODEL is not None:
+    model = get_model()
+    if model is not None:
         try:
-            vec = MODEL.encode(text, convert_to_numpy=True, normalize_embeddings=True)
+            vec = model.encode(text, convert_to_numpy=True, normalize_embeddings=True)
             return vec.tolist()
         except Exception:
             pass
@@ -199,9 +207,10 @@ def embed_batch(texts: List[str], batch_size: int = 32) -> List[List[float]]:
 
     clean_texts = [t if (t and t.strip()) else " " for t in texts]
 
-    if MODEL is not None:
+    model = get_model()
+    if model is not None:
         try:
-            embeddings = MODEL.encode(
+            embeddings = model.encode(
                 clean_texts,
                 batch_size=batch_size,
                 show_progress_bar=False,
