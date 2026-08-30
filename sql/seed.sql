@@ -1,5 +1,5 @@
 -- =============================================================================
---  AI Resume Screening & Ranking System - Production Database Schema & Seed
+--  AI Resume Screening & Ranking System - Production Database Schema
 -- =============================================================================
 
 DROP TABLE IF EXISTS rankings CASCADE;
@@ -118,27 +118,9 @@ CREATE TABLE rankings (
   UNIQUE (job_id, resume_id)
 );
 
-CREATE INDEX idx_rankings_job_score ON rankings (job_id, score DESC);
-
--- =============================================================================
--- SAMPLE SEED DATA
--- =============================================================================
-
--- 1. SEED USERS (Password for all demo accounts: "password123")
--- bcrypt hash for "password123"
-INSERT INTO users (name, email, password, role) VALUES
-('Alice Recruiter', 'alice@company.com', '$2b$12$4mU8e/l4k1pI4o35eBfVqOD4O6t.p6hX9I2eE8fLzN6BwLh2jZ5uq', 'hr'),
-('Bob Talent', 'bob@company.com', '$2b$12$4mU8e/l4k1pI4o35eBfVqOD4O6t.p6hX9I2eE8fLzN6BwLh2jZ5uq', 'hr'),
-('Pratyush Candidate', 'pratyush@example.com', '$2b$12$4mU8e/l4k1pI4o35eBfVqOD4O6t.p6hX9I2eE8fLzN6BwLh2jZ5uq', 'candidate');
-
--- 2. SEED CANDIDATES
-INSERT INTO candidates (full_name, email, phone) VALUES
-('Pratyush Kandari', 'pratyush@example.com', '+91-90000-00001'),
-('Ravi Sharma', 'ravi@example.com', '+91-90000-00002'),
-('Kavya Iyer', 'kavya@example.com', '+91-90000-00003'),
-('Ananya Gupta', 'ananya@example.com', '+91-90000-00004');
-
--- 3. SEED SKILLS
+-- -----------------------------------------------------------------------------
+-- BASE SKILL DICTIONARY (Standard Technical Taxonomy)
+-- -----------------------------------------------------------------------------
 INSERT INTO skills (skill_name, canonical_name) VALUES
 ('python', 'python'),
 ('fastapi', 'fastapi'),
@@ -149,43 +131,16 @@ INSERT INTO skills (skill_name, canonical_name) VALUES
 ('react', 'react'),
 ('nlp', 'nlp'),
 ('pytorch', 'pytorch'),
-('kubernetes', 'kubernetes');
-
--- 4. SEED JOBS
-INSERT INTO jobs (created_by, title, description) VALUES
-(1, 'Machine Learning Engineer', 'Looking for ML Engineer skilled in Python, PyTorch, NLP, Docker, and FastAPI'),
-(1, 'Backend Developer', 'Experienced Backend Developer with PostgreSQL, SQL, FastAPI, and Docker');
-
--- 5. SEED JOB SKILLS
-INSERT INTO job_skills (job_id, skill_id)
-SELECT 1, skill_id FROM skills WHERE skill_name IN ('python', 'machine learning', 'nlp', 'pytorch', 'fastapi', 'docker');
-
-INSERT INTO job_skills (job_id, skill_id)
-SELECT 2, skill_id FROM skills WHERE skill_name IN ('python', 'sql', 'postgresql', 'fastapi', 'docker');
-
--- 6. SEED RESUMES
-INSERT INTO resumes (candidate_id, job_id, filename, upload_path, raw_text, parsed_json) VALUES
-(1, 1, 'resume_pratyush.pdf', 'uploads/resume_pratyush.pdf', 'Pratyush resume with Python, PyTorch, NLP, and FastAPI skills', '{"skills": ["python", "pytorch", "nlp", "fastapi"], "email": "pratyush@example.com"}'),
-(2, 1, 'resume_ravi.pdf', 'uploads/resume_ravi.pdf', 'Ravi resume with Python, Machine Learning, and Docker skills', '{"skills": ["python", "machine learning", "docker"], "email": "ravi@example.com"}'),
-(3, 2, 'resume_kavya.pdf', 'uploads/resume_kavya.pdf', 'Kavya resume with SQL, PostgreSQL, Python, and FastAPI skills', '{"skills": ["sql", "postgresql", "python", "fastapi"], "email": "kavya@example.com"}'),
-(4, 2, 'resume_ananya.pdf', 'uploads/resume_ananya.pdf', 'Ananya resume with Docker, React, and Python skills', '{"skills": ["docker", "react", "python"], "email": "ananya@example.com"}');
-
--- 7. SEED RESUME SKILLS
-INSERT INTO resume_skills (resume_id, skill_id, confidence)
-SELECT 1, skill_id, 0.95 FROM skills WHERE skill_name IN ('python', 'pytorch', 'nlp', 'fastapi');
-
-INSERT INTO resume_skills (resume_id, skill_id, confidence)
-SELECT 2, skill_id, 0.90 FROM skills WHERE skill_name IN ('python', 'machine learning', 'docker');
-
-INSERT INTO resume_skills (resume_id, skill_id, confidence)
-SELECT 3, skill_id, 0.95 FROM skills WHERE skill_name IN ('sql', 'postgresql', 'python', 'fastapi');
-
-INSERT INTO resume_skills (resume_id, skill_id, confidence)
-SELECT 4, skill_id, 0.85 FROM skills WHERE skill_name IN ('docker', 'react', 'python');
-
--- 8. SEED RANKINGS
-INSERT INTO rankings (job_id, resume_id, score, status) VALUES
-(1, 1, 0.88, 'accepted'),
-(1, 2, 0.72, 'accepted'),
-(2, 3, 0.92, 'accepted'),
-(2, 4, 0.58, 'rejected');
+('kubernetes', 'kubernetes'),
+('redis', 'redis'),
+('aws', 'aws'),
+('git', 'git'),
+('javascript', 'javascript'),
+('typescript', 'typescript'),
+('node.js', 'node.js'),
+('ci/cd', 'ci/cd'),
+('rest api', 'rest api'),
+('tensorflow', 'tensorflow'),
+('pandas', 'pandas'),
+('numpy', 'numpy')
+ON CONFLICT (skill_name) DO NOTHING;

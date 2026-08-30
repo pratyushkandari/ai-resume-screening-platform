@@ -441,18 +441,10 @@ def list_jobs(
     db: Session = Depends(get_db)
 ):
     """
-    List jobs with pagination. HR recruiters see their posted requisitions;
-    candidates see all active vacancies.
+    List active company job requisitions with pagination.
+    Accessible to both HR recruiters and candidates.
     """
-    eff_role = current_user.role if current_user else (role or "candidate").strip().lower()
-    eff_user_id = current_user.user_id if current_user else user_id
-
     query = db.query(models.Job)
-    if eff_role == "hr":
-        if not eff_user_id:
-            raise HTTPException(status_code=400, detail="Missing recruiter identity for HR jobs list.")
-        query = query.filter(models.Job.created_by == int(eff_user_id))
-
     rows = query.order_by(models.Job.created_at.desc()).offset((page - 1) * limit).limit(limit).all()
 
     out = []
@@ -466,6 +458,7 @@ def list_jobs(
             "skills": skill_names
         })
     return out
+
 
 
 @app.post("/api/jobs", response_model=schemas.JobOut, tags=["Jobs"])
@@ -915,11 +908,6 @@ def job_summary(
     if not job:
         raise HTTPException(status_code=404, detail="Job opening not found.")
 
-    if eff_user_id and job.created_by != int(eff_user_id):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Unauthorized: You do not have permission to view analytics for this job opening."
-        )
 
     # 1. Check Redis Cache
     cache_key = f"job:summary:{job_id}"
