@@ -1,45 +1,59 @@
-
 import React from "react";
 
-
-export default function FileInput({ onChange, accept = ".doc,.docx,.pdf" }) {
-
+export default function FileInput({
+  onChange,
+  accept = ".pdf,.docx,.doc,.txt",
+  label = "Click to select document",
+  disabled = false,
+}) {
   return (
-
     <label
       style={{
-        display: "block",            // makes the label a block element (takes full width)
-        padding: "10px",             // inner spacing
-        border: "2px dashed #bbb",   // gray dashed border to indicate "drop zone"
-        borderRadius: "8px",         // smooth rounded corners
-        textAlign: "center",         // centers the text horizontally
-        cursor: "pointer",           // shows pointer cursor when hovered
-        background: "#fafafa",       // light gray background
-        transition: "0.3s ease all", // smooth hover animation (for future effects)
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        padding: "12px 16px",
+        border: "1.5px dashed #cbd5e1",
+        borderRadius: 8,
+        textAlign: "center",
+        cursor: disabled ? "not-allowed" : "pointer",
+        background: "#f8fafc",
+        color: "#475569",
+        fontSize: 13,
+        fontWeight: 600,
+        transition: "all 0.15s ease",
+        opacity: disabled ? 0.6 : 1,
+      }}
+      onMouseOver={(e) => {
+        if (!disabled) e.currentTarget.style.borderColor = "#3b82f6";
+      }}
+      onMouseOut={(e) => {
+        if (!disabled) e.currentTarget.style.borderColor = "#cbd5e1";
       }}
     >
-      {/* -----------------------------------------------------------
-          📥 Hidden File Input
-          -----------------------------------------------------------
-          - The <input> element is the actual file selector.
-          - It is hidden using style={{ display: "none" }}.
-          - When the user clicks on the label, this input is triggered automatically.
-          - The `onChange` prop handles the event when a file is chosen.
-      */}
       <input
-        type="file"          // Tells the browser this input selects files
-        accept={accept}      // Restricts file types (passed from props)
-        onChange={onChange}  // Calls the parent-provided handler when file is chosen
-        style={{ display: "none" }} // hides default input styling completely
+        type="file"
+        accept={accept}
+        onChange={onChange}
+        disabled={disabled}
+        style={{ display: "none" }}
       />
-
-      {/* -----------------------------------------------------------
-          🧾 Visible Text / Icon Section
-          -----------------------------------------------------------
-          - This is what the user actually sees inside the upload box.
-          - You can change the emoji or text for better UX.
-      */}
-      <span style={{ color: "#333" }}>📄 Click to choose a file</span>
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+        <polyline points="17 8 12 3 7 8" />
+        <line x1="12" x2="12" y1="3" y2="15" />
+      </svg>
+      <span>{label}</span>
     </label>
   );
 }
