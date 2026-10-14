@@ -8,15 +8,18 @@ import numpy as np
 
 # PyTorch / Sentence Transformers (Lazy Loaded to prevent container OOM / startup race conditions)
 _MODEL = None
+MODEL = None
 
 def get_model():
-    global _MODEL
+    global _MODEL, MODEL
     if _MODEL is None:
         try:
             from sentence_transformers import SentenceTransformer
             _MODEL = SentenceTransformer("all-MiniLM-L6-v2")
+            MODEL = _MODEL
         except Exception:
             _MODEL = None
+            MODEL = None
     return _MODEL
 
 

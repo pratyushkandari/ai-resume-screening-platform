@@ -26,6 +26,23 @@ services:
       - resume_network
 
   # ---------------------------------------------------------------------------
+  # Distributed Cache Service (Redis 7)
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: resume_screening_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - resume_network
+
+  # ---------------------------------------------------------------------------
   # FastAPI Application Backend Service
   # ---------------------------------------------------------------------------
   backend:
@@ -36,6 +53,7 @@ services:
     restart: always
     environment:
       DATABASE_URL: postgresql://resume_user1:Resume123@db:5432/resume_db1
+      REDIS_URL: redis://redis:6379/0
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-prod-super-secret-key-change-in-production-resume-matcher-2026}
       ACCESS_TOKEN_EXPIRE_MINUTES: 1440
       UPLOAD_DIR: uploads
@@ -45,6 +63,8 @@ services:
       - ./backend/uploads:/app/uploads
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - resume_network

@@ -202,7 +202,7 @@ def readiness_check(db: Session = Depends(get_db)):
     return {
         "status": "ready",
         "database": db_status,
-        "ml_model": "active" if ml_utils.MODEL is not None else "fallback_mode",
+        "ml_model": "active" if ml_utils.get_model() is not None else "fallback_mode",
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
 

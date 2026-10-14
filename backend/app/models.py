@@ -1,6 +1,6 @@
 # backend/app/models.py
 
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import (
     Column, Integer, Text, Float, ForeignKey, DateTime, UniqueConstraint, String, JSON
 )
@@ -22,7 +22,7 @@ class Candidate(Base):
     full_name = Column(Text)
     email = Column(Text, unique=True, index=True)
     phone = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     resumes = relationship(
         "Resume",
@@ -43,7 +43,7 @@ class Resume(Base):
 
     filename = Column(Text, nullable=False)
     upload_path = Column(Text, nullable=False)
-    uploaded_at = Column(DateTime, default=datetime.utcnow)
+    uploaded_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     raw_text = Column(Text)
     parsed_json = Column(JSON_TYPE)
@@ -110,7 +110,7 @@ class Job(Base):
 
     title = Column(Text, nullable=False)
     description = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     embedding = Column(JSON_TYPE)
 
     user = relationship("User")
@@ -153,7 +153,7 @@ class Ranking(Base):
 
     score = Column(Float, nullable=False)
     status = Column(String, default="pending")
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     job = relationship("Job", back_populates="rankings")
     resume = relationship("Resume", back_populates="rankings")
