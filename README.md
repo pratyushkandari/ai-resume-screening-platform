@@ -6,9 +6,17 @@
 [![React](https://img.shields.io/badge/React-18.0+-61DAFB.svg?logo=react&logoColor=black)](https://react.dev)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1.svg?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg?logo=docker&logoColor=white)](https://www.docker.com/)
-[![Pytest](https://img.shields.io/badge/Pytest-19%20Passed%20(100%25)-0A9EDC.svg?logo=pytest&logoColor=white)](https://pytest.org)
+[![Pytest](https://img.shields.io/badge/Pytest-29%20Passed%20(100%25)-0A9EDC.svg?logo=pytest&logoColor=white)](https://pytest.org)
 [![Security](https://img.shields.io/badge/Auth-JWT%20Bearer%20%2B%20RBAC-green.svg)](https://jwt.io)
-[![Throughput](https://img.shields.io/badge/Throughput-51%2C341%20cand%2Fsec-brightgreen.svg)]()
+[![Throughput](https://img.shields.io/badge/Throughput-54%2C496%20cand%2Fsec-brightgreen.svg)]()
+[![Documentation](https://img.shields.io/badge/Docs-Architecture%20%7C%20API%20%7C%20Runbook-blue.svg)](docs/ARCHITECTURE.md)
+
+---
+
+> **Engineering Documentation:**
+> * 📐 [System Architecture & RFC Technical Design](docs/ARCHITECTURE.md)
+> * 📡 [REST API Specification & Schema Reference](docs/API_REFERENCE.md)
+> * 🛠️ [Production Reliability & SRE Runbook](docs/RUNBOOK.md)
 
 ---
 
@@ -133,11 +141,11 @@ Executed via automated benchmark suite `backend/benchmark_concurrency.py`:
 ======================================================================
 VECTORIZED MATRIX RANKING PERFORMANCE METRICS:
   - Total Candidates Evaluated: 1,000
-  - Average Evaluation Latency: 19.477 ms
-  - p50 Latency:                18.654 ms
-  - p95 Latency:                22.650 ms
-  - p99 Latency:                31.709 ms
-  - Peak System Throughput:     51,341 candidates / second
+  - Average Evaluation Latency: 18.350 ms
+  - p50 Latency:                17.204 ms
+  - p95 Latency:                23.982 ms
+  - p99 Latency:                29.257 ms
+  - Peak System Throughput:     54,496 candidates / second
 ----------------------------------------------------------------------
 BATCH EMBEDDING INFERENCE (Batch Size = 64):
   - Batch Embedding Time (64 documents): 166.85 ms
@@ -175,29 +183,39 @@ cd backend
 .\venv\Scripts\pytest.exe tests/ -v
 ```
 
-### Test Suite Execution Output (19/19 PASSED):
+### Test Suite Execution Output (29/29 PASSED):
 ```
-tests/test_auth.py::test_password_hashing PASSED                         [  5%]
-tests/test_auth.py::test_jwt_generation_and_decoding PASSED              [ 10%]
-tests/test_auth.py::test_user_registration_api PASSED                    [ 15%]
-tests/test_auth.py::test_user_login_api PASSED                           [ 21%]
-tests/test_auth.py::test_login_invalid_credentials PASSED                [ 26%]
+tests/test_auth.py::test_password_hashing PASSED                         [  3%]
+tests/test_auth.py::test_password_strength_validator PASSED              [  6%]
+tests/test_auth.py::test_email_format_validator PASSED                   [ 10%]
+tests/test_auth.py::test_jwt_generation_and_decoding PASSED              [ 13%]
+tests/test_auth.py::test_user_registration_api PASSED                    [ 17%]
+tests/test_auth.py::test_user_registration_weak_password_fails PASSED    [ 20%]
+tests/test_auth.py::test_user_login_api PASSED                           [ 24%]
+tests/test_auth.py::test_login_invalid_credentials PASSED                [ 27%]
 tests/test_auth.py::test_get_me_profile_authenticated PASSED             [ 31%]
-tests/test_auth.py::test_get_me_unauthenticated PASSED                   [ 36%]
-tests/test_jobs.py::test_create_job_by_hr PASSED                         [ 42%]
-tests/test_jobs.py::test_create_job_by_candidate_forbidden PASSED        [ 47%]
-tests/test_jobs.py::test_list_jobs_for_candidate PASSED                  [ 52%]
-tests/test_jobs.py::test_list_jobs_pagination PASSED                     [ 57%]
-tests/test_ranking.py::test_cosine_similarity_calculation PASSED         [ 63%]
-tests/test_ranking.py::test_composite_scoring_engine PASSED              [ 68%]
-tests/test_ranking.py::test_vectorized_candidate_ranking PASSED          [ 73%]
-tests/test_ranking.py::test_ranking_and_summary_flow PASSED              [ 78%]
-tests/test_resumes.py::test_contact_parsing_regex PASSED                 [ 84%]
-tests/test_resumes.py::test_word_boundary_skill_extraction PASSED        [ 89%]
-tests/test_resumes.py::test_upload_resume_api PASSED                     [ 94%]
+tests/test_auth.py::test_get_me_unauthenticated PASSED                   [ 34%]
+tests/test_jobs.py::test_create_job_by_hr PASSED                         [ 37%]
+tests/test_jobs.py::test_create_job_short_description_fails PASSED      [ 41%]
+tests/test_jobs.py::test_create_job_missing_skills_fails PASSED          [ 44%]
+tests/test_jobs.py::test_create_job_by_candidate_forbidden PASSED        [ 48%]
+tests/test_jobs.py::test_list_jobs_for_candidate PASSED                  [ 51%]
+tests/test_jobs.py::test_list_jobs_pagination PASSED                     [ 55%]
+tests/test_observability.py::test_health_check PASSED                    [ 58%]
+tests/test_observability.py::test_readiness_check PASSED                 [ 62%]
+tests/test_observability.py::test_prometheus_metrics PASSED              [ 65%]
+tests/test_ranking.py::test_cosine_similarity_calculation PASSED         [ 68%]
+tests/test_ranking.py::test_composite_scoring_engine PASSED              [ 72%]
+tests/test_ranking.py::test_vectorized_candidate_ranking PASSED          [ 75%]
+tests/test_ranking.py::test_ranking_and_summary_flow PASSED              [ 79%]
+tests/test_resumes.py::test_contact_parsing_regex PASSED                 [ 82%]
+tests/test_resumes.py::test_word_boundary_skill_extraction PASSED        [ 86%]
+tests/test_resumes.py::test_upload_resume_api PASSED                     [ 89%]
+tests/test_resumes.py::test_upload_resume_invalid_extension_fails PASSED [ 93%]
+tests/test_resumes.py::test_upload_resume_empty_file_fails PASSED        [ 96%]
 tests/test_resumes.py::test_batch_upload_resumes_api PASSED              [100%]
 
-======================= 19 passed in 6.12s (100% SUCCESS) =======================
+======================= 29 passed in 37.52s (100% SUCCESS) =======================
 ```
 
 ---
