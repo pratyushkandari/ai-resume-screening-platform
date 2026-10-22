@@ -1,279 +1,151 @@
-# REST API Reference & Specification
+# API reference
 
-All API endpoints reside under `/api` and adhere to standard HTTP status codes and JSON semantics.
+Interactive docs: `http://127.0.0.1:8000/docs` (Swagger UI) when running locally.
+
+* Authentication: `Authorization: Bearer <access_token>` from `/api/register` or `/api/login`.
+* Errors: `{"detail": "message"}` (validation errors from typed parameters: 422 with a list).
+  Unexpected server errors return `500 {"detail": "Internal server error.", "request_id": "..."}`;
+  the request ID is also in the `X-Request-ID` header and in the server log.
+* Every response carries `X-Request-ID` and `X-Response-Time-MS`.
+
+| Method | Path | Access | Success |
+|---|---|---|---|
+| POST | `/api/register` | public, rate limited | 201 token |
+| POST | `/api/login` | public, rate limited | 200 token |
+| GET | `/api/me` | any signed-in user | 200 |
+| GET | `/api/jobs` | public | 200 list |
+| GET | `/api/jobs/mine` | recruiter | 200 list |
+| POST | `/api/jobs` | recruiter | 201 |
+| POST | `/api/resumes/upload` | any signed-in user | 201 |
+| POST | `/api/resumes/batch-upload` | any signed-in user | 200 |
+| GET | `/api/resumes/{resume_id}/download` | recruiter who owns the job | 200 file |
+| GET | `/api/jobs/{job_id}/summary` | recruiter who owns the job | 200 |
+| POST | `/api/jobs/{job_id}/rank` | recruiter who owns the job | 200 |
+| GET | `/api/jobs/{job_id}/rankings` | recruiter who owns the job | 200 list |
+| GET | `/healthz`, `/readyz`, `/metrics` | public (operations) | 200 / 503 |
+
+Status codes used: 400 invalid input or rejected file · 401 missing/invalid/expired
+token · 403 wrong role or not your job · 404 unknown job/resume · 409 email already
+registered · 413 file too large · 422 unreadable document or invalid parameter ·
+429 too many login/registration attempts (`Retry-After` header) · 503 not ready.
 
 ---
 
-## 1. Authentication & Session
+## Auth
 
 ### `POST /api/register`
-Creates a new user profile (`hr` or `candidate`) with input sanitization and Bcrypt password hashing.
+JSON or form data.
 
-**Request (JSON or Multipart Form):**
 ```json
-{
-  "name": "Jane Recruiter",
-  "email": "jane.recruiter@company.com",
-  "password": "StrongPassword123!",
-  "role": "hr"
-}
+{ "name": "Jane Recruiter", "email": "jane@acme.com", "password": "Str0ng!Passw0rd",
+  "role": "hr", "access_code": "<HR_SIGNUP_CODE>" }
 ```
+`role` is `candidate` (default) or `hr`. `access_code` is required for `hr` and must
+equal the server's `HR_SIGNUP_CODE`; if that variable is empty, recruiter sign-up is
+disabled (403). Password: 8–128 characters (≤ 72 bytes), upper, lower, digit, special.
 
-**Password Requirements:**
-* Minimum 8 characters, maximum 128 characters
-* At least 1 uppercase letter (`A-Z`)
-* At least 1 lowercase letter (`a-z`)
-* At least 1 numeric digit (`0-9`)
-* At least 1 special character (`!@#$%^&*...`)
-
-**Response (`200 OK`):**
+Response `201`:
 ```json
-{
-  "access_token": "eyJhbGciOiJIUzI1NiIsIn...",
-  "token_type": "bearer",
-  "msg": "Registered successfully",
-  "user_id": 14,
-  "role": "hr",
-  "name": "Jane Recruiter"
-}
+{ "access_token": "eyJ...", "token_type": "bearer", "user_id": 14, "name": "Jane Recruiter",
+  "role": "hr", "expires_in": 3600 }
 ```
-
----
 
 ### `POST /api/login`
-Authenticates credentials and returns a signed RFC 7519 JWT access token.
-
-**Request:**
-```json
-{
-  "email": "jane.recruiter@company.com",
-  "password": "StrongPassword123!"
-}
-```
-
-**Response (`200 OK`):**
-```json
-{
-  "access_token": "eyJhbGciOiJIUzI1NiIsIn...",
-  "token_type": "bearer",
-  "role": "hr",
-  "name": "Jane Recruiter",
-  "user_id": 14
-}
-```
-
----
+`{"email": "...", "password": "..."}` → `200` same shape as registration.
+Wrong email and wrong password both return `401 "Invalid email or password."`.
 
 ### `GET /api/me`
-Retrieves the profile of the currently authenticated bearer token.
+`{"user_id": 14, "name": "Jane Recruiter", "email": "jane@acme.com", "role": "hr"}`
 
-**Headers:**
-```http
-Authorization: Bearer <access_token>
-```
+## Jobs
 
-**Response (`200 OK`):**
+### `GET /api/jobs?page=1&limit=50`
+Open positions, newest first. `limit` 1–100.
 ```json
-{
-  "user_id": 14,
-  "name": "Jane Recruiter",
-  "email": "jane.recruiter@company.com",
-  "role": "hr"
-}
+[{ "job_id": 3, "title": "ML Engineer", "description": "...", "created_by": 14,
+   "skills": ["python", "pytorch", "docker"] }]
 ```
 
----
+### `GET /api/jobs/mine`
+The signed-in recruiter's own jobs (same shape).
 
-## 2. Job Requisition Management
+### `POST /api/jobs` (form data)
+| Field | Rules |
+|---|---|
+| `title` | 3–120 characters |
+| `description` | 20–10,000 characters (used for the job embedding) |
+| `skills` | comma-separated, 1–30 skills, normalized to lowercase (`Machine-Learning` → `machine learning`) |
 
-### `GET /api/jobs`
-Lists open job requisitions with pagination.
+`201` → the created job. The owner is always the signed-in recruiter.
 
-**Query Parameters:**
-* `page` *(int, default: 1)*: Page number ($\ge 1$)
-* `limit` *(int, default: 50)*: Page size (1 to 100)
-* `role` *(string, optional)*: User role filter
+## Resumes
 
-**Response (`200 OK`):**
+### `POST /api/resumes/upload` (multipart)
+Fields: `file` (`.pdf`, `.docx`, `.txt`; ≤ `MAX_UPLOAD_MB`, default 15 MB) and `job_id`.
+
+`201`:
 ```json
-[
-  {
-    "job_id": 1,
-    "title": "Senior AI Infrastructure Engineer",
-    "description": "Designing high-throughput vector inference and model serving architectures.",
-    "created_by": 14,
-    "skills": ["python", "docker", "pytorch", "fastapi", "kubernetes"]
-  }
-]
+{ "filename": "alice.pdf", "status": "processed", "resume_id": 42, "candidate_id": 18,
+  "candidate_name": "Alice Kumar",
+  "parsed": { "name": "Alice Kumar", "email": "alice@example.com", "phone": "+91 98765 43210",
+              "skills": ["docker", "fastapi", "python"] } }
 ```
+Rejections: 400 (type, signature mismatch, empty), 413 (too large), 422 (no readable text).
 
----
+Who the resume belongs to:
+* uploaded by a **candidate** → that signed-in account (its email), whatever email the
+  document contains, so nobody can attach resumes to another applicant's profile;
+* uploaded by a **recruiter** on someone's behalf → the email found in the resume
+  (a new applicant profile if none is found).
 
-### `POST /api/jobs`
-Creates a new requisition and pre-computes semantic embedding. Restricted to users with `role: "hr"`.
-
-**Headers:**
-```http
-Authorization: Bearer <access_token>
-```
-
-**Request (Form Data):**
-* `title`: Requisition title (3 to 120 chars)
-* `description`: Detailed job responsibilities (20 to 10,000 chars)
-* `skills`: Comma-delimited skill list (e.g., `python, docker, pytorch`)
-
-**Response (`200 OK`):**
+### `POST /api/resumes/batch-upload` (multipart)
+Fields: `files` (repeat, ≤ `MAX_BATCH_FILES`, default 25) and `job_id`. Always `200`
+with a result per file, in request order:
 ```json
-{
-  "job_id": 2,
-  "title": "Distributed Systems Architect",
-  "description": "Building fault-tolerant event processing pipelines with Kafka and Redis.",
-  "created_by": 14,
-  "skills": ["python", "kafka", "redis", "kubernetes", "go"]
-}
+{ "job_id": 3, "total_files": 3, "successful": 2, "failed": 1,
+  "results": [ { "filename": "a.pdf", "status": "processed", "resume_id": 43, "...": "..." },
+               { "filename": "b.exe", "status": "failed", "error": "Unsupported file type '.exe'..." } ] }
 ```
 
----
+### `GET /api/resumes/{resume_id}/download`
+The original file as an attachment. Only the recruiter who owns the resume's job.
 
-## 3. Resume Ingestion & Parsing
-
-### `POST /api/resumes/upload`
-Uploads and parses a single candidate resume (`.pdf`, `.docx`, `.doc`, `.txt`).
-
-**Request (Multipart Form):**
-* `file`: Binary document payload (max 15MB)
-* `job_id`: Target requisition ID *(optional)*
-
-**Response (`200 OK`):**
-```json
-{
-  "resume_id": 42,
-  "candidate_id": 18,
-  "job_id": 1,
-  "parsed": {
-    "parsed": {
-      "name": "Alex Mercer",
-      "email": "alex.mercer@example.com",
-      "phone": "+1-555-0199"
-    },
-    "skills": ["python", "pytorch", "docker", "fastapi"]
-  }
-}
-```
-
----
-
-### `POST /api/resumes/batch-upload`
-High-throughput concurrent batch ingestion for multiple candidate resumes.
-
-**Request (Multipart Form):**
-* `files`: Array of file binaries
-* `job_id`: Target requisition ID
-
-**Response (`200 OK`):**
-```json
-{
-  "total_files": 3,
-  "successful": 3,
-  "job_id": 1,
-  "results": [
-    {
-      "filename": "Alex_Mercer_AI.pdf",
-      "resume_id": 42,
-      "candidate_id": 18,
-      "candidate_name": "Alex Mercer",
-      "status": "processed"
-    }
-  ]
-}
-```
-
----
-
-## 4. Evaluation & Rankings
-
-### `POST /api/jobs/{job_id}/rank`
-Executes hardware-vectorized matrix dot-product ranking for all candidate resumes submitted to the specified requisition.
-
-**Headers:**
-```http
-Authorization: Bearer <access_token>
-```
-
-**Response (`200 OK`):**
-```json
-{
-  "status": "done",
-  "ranked": 48
-}
-```
-
----
+## Rankings
 
 ### `GET /api/jobs/{job_id}/summary`
-Retrieves recruitment analytics, skill gap distributions, and sorted candidate rankings for the HR dashboard. Backed by sub-millisecond Redis Cache-Aside.
-
-**Headers:**
-```http
-Authorization: Bearer <access_token>
-```
-
-**Response (`200 OK`):**
+Live scores, one entry per candidate (their best resume), highest first. Header
+`X-Cache: HIT|MISS` when Redis is configured.
 ```json
 {
-  "job_id": 1,
-  "title": "Senior AI Infrastructure Engineer",
-  "job_skills": ["python", "docker", "pytorch", "fastapi", "kubernetes"],
-  "job_skill_counts": [
-    { "skill_name": "python", "matches": 45 },
-    { "skill_name": "docker", "matches": 38 },
-    { "skill_name": "pytorch", "matches": 29 }
-  ],
-  "top_skills": [
-    { "skill_name": "python", "matches": 82 }
-  ],
-  "candidates": [
-    {
-      "candidate_id": 18,
-      "candidate_name": "Alex Mercer",
-      "resume_id": 42,
-      "semantic": 0.8842,
-      "skill_score": 0.8000,
-      "score": 0.8753,
-      "status": "accepted",
-      "matched_skills": ["docker", "fastapi", "python", "pytorch"],
-      "missing_skills": ["kubernetes"],
-      "coverage_vector": [1, 1, 1, 1, 0],
-      "coverage_percent": 80
-    }
-  ]
+  "job_id": 3, "title": "ML Engineer",
+  "job_skills": ["python", "pytorch", "docker"],
+  "job_skill_counts": [{ "skill_name": "python", "matches": 12 }],
+  "top_skills": [{ "skill_name": "python", "matches": 12 }],
+  "candidates": [{
+    "candidate_id": 18, "candidate_name": "Alice Kumar", "resume_id": 42, "filename": "alice.pdf",
+    "semantic": 0.81, "skill_score": 0.6667, "score": 0.7097, "status": "accepted",
+    "matched_skills": ["docker", "python"], "missing_skills": ["pytorch"],
+    "coverage_vector": [1, 0, 1], "coverage_percent": 67 }],
+  "semantic_available": true,
+  "last_ranked_at": "2026-10-22T07:30:00+00:00"
 }
 ```
+`top_skills` counts skills among this job's applicants. `semantic_available` is false
+when any score used the neutral 0.5 semantic value.
 
----
+### `POST /api/jobs/{job_id}/rank`
+Fills missing embeddings (if the model is loaded), re-scores every resume and replaces
+the saved snapshot: `{"status": "done", "ranked": 12, "ranked_at": "..."}`.
 
-## 5. Observability & SRE Endpoints
+### `GET /api/jobs/{job_id}/rankings`
+The saved snapshot, one row per resume:
+`[{"ranking_id": 7, "resume_id": 42, "candidate_id": 18, "candidate_name": "Alice Kumar", "score": 0.7097, "status": "accepted"}]`
 
-### `GET /healthz`
-Liveness probe verifying that the FastAPI server process is active.
-```json
-{
-  "status": "ok",
-  "timestamp": "2026-10-14T20:30:00.000Z",
-  "service": "resume-screener"
-}
-```
+## Operations
 
-### `GET /readyz`
-Readiness probe verifying active database connection pool and SentenceTransformer embedding model readiness.
-```json
-{
-  "status": "ready",
-  "database": "connected",
-  "ml_model": "active",
-  "timestamp": "2026-10-14T20:30:00.000Z"
-}
-```
-
-### `GET /metrics`
-Prometheus metrics format containing RED method telemetry (`http_requests_total`, `app_uptime_seconds`, `redis_cache_hits_total`, etc.).
+* `GET /healthz` → `{"status": "ok", ...}` (liveness)
+* `GET /readyz` → `{"status": "ready", "database": "connected", "ml_model": "active|unavailable", "cache": "redis|disabled"}`;
+  503 if the database is down, its tables could not be created yet (`"database": "schema not ready"`,
+  retried on every check), or the model is not loaded while `REQUIRE_EMBEDDING_MODEL` is on.
+* `GET /metrics` → Prometheus text (`http_requests_total{method,path,status}`,
+  `http_request_duration_seconds_sum/count`, `summary_cache_hits_total`, `embedding_model_loaded`, …)
