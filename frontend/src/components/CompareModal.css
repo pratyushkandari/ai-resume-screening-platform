@@ -50,27 +50,6 @@
 
 
 /* =============================================================================================
-   LOADING
-============================================================================================= */
-.cm-loading {
-  padding: 20px;
-  text-align: center;
-  color: #666;
-}
-
-
-/* =============================================================================================
-   EMPTY STATE (🔥 NEW)
-============================================================================================= */
-.cm-empty {
-  padding: 30px;
-  text-align: center;
-  color: #64748b;
-  font-size: 14px;
-}
-
-
-/* =============================================================================================
    SUMMARY CARDS
 ============================================================================================= */
 .cm-summary {
@@ -110,7 +89,6 @@
   margin-top: 14px;
   align-items: flex-start;
 
-  /* 🔥 FIX: responsive wrapping */
   flex-wrap: wrap;
 }
 
@@ -120,7 +98,7 @@
 ============================================================================================= */
 .cm-radar-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
   gap: 12px;
   flex: 1;
 }
@@ -142,7 +120,7 @@
 ============================================================================================= */
 .cm-bar-box {
   width: 420px;
-  min-height: 350px; /* 🔥 FIX: prevents collapse */
+  min-height: 350px;
 
   background: #fff;
   padding: 12px;
@@ -162,21 +140,8 @@
   font-size: 13px;
 }
 
-.chip.matched {
-  background: #ecfdf5;
-  color: #065f46;
-  border: 1px solid rgba(6,95,70,0.08);
-}
-
-.chip.missing {
-  background: #fff5f5;
-  color: #8b1d1d;
-  border: 1px solid rgba(139,29,29,0.06);
-}
-
-
 /* =============================================================================================
-   RESPONSIVE IMPROVEMENTS (🔥 NEW)
+   RESPONSIVE IMPROVEMENTS
 ============================================================================================= */
 @media (max-width: 900px) {
   .cm-bar-box {

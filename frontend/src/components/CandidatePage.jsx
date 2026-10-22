@@ -1,7 +1,13 @@
-import React, { useEffect, useState, useRef } from "react";
-import api from "../api";
+import { useEffect, useState, useRef } from "react";
+import { toast } from "react-toastify";
+import api, { getErrorMessage } from "../api";
 import UploadResume from "./UploadResume";
 
+/**
+ * Candidate home page: every open job as a card, with the resume form below.
+ * "Apply for Position" preselects that job in the form and scrolls to it.
+ * Jobs are fetched once here and passed down, so the form does not refetch them.
+ */
 export default function CandidatePage() {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -15,23 +21,13 @@ export default function CandidatePage() {
   async function loadJobs() {
     try {
       setLoading(true);
-      const raw_user_id = localStorage.getItem("user_id");
-      const role = (localStorage.getItem("role") || "").toLowerCase().trim();
-      const user_id = Number(raw_user_id);
-
-      const res = await api.get("/api/jobs", {
-        params: {
-          user_id: user_id || 0,
-          role: role || "candidate"
-        }
-      });
-
+      const res = await api.get("/api/jobs");
       setJobs(res.data || []);
       if (res.data && res.data.length > 0) {
         setSelectedJobId(String(res.data[0].job_id));
       }
     } catch (err) {
-      console.error("Failed to load jobs", err);
+      toast.error(getErrorMessage(err, "Failed to load open positions."));
     } finally {
       setLoading(false);
     }
@@ -45,7 +41,7 @@ export default function CandidatePage() {
   };
 
   return (
-    <div style={{ padding: "28px 32px", maxWidth: 1200, margin: "0 auto" }}>
+    <div className="page" style={{ padding: "28px 32px", maxWidth: 1200, margin: "0 auto" }}>
       {/* Header */}
       <div style={{ marginBottom: 28 }}>
         <h1 style={{ fontSize: 24, fontWeight: 800, color: "#0f172a", letterSpacing: "-0.02em" }}>
@@ -68,7 +64,7 @@ export default function CandidatePage() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fill, minmax(min(340px, 100%), 1fr))",
             gap: 18,
             marginBottom: 36
           }}
@@ -130,6 +126,7 @@ export default function CandidatePage() {
                 )}
 
                 <button
+                  type="button"
                   onClick={() => handleApplyClick(j.job_id)}
                   className="btn btn-primary"
                   style={{ width: "100%", padding: "9px" }}
@@ -149,7 +146,7 @@ export default function CandidatePage() {
 
       {/* Resume Application Submission Module */}
       <div ref={uploadSectionRef}>
-        <UploadResume preselectedJobId={selectedJobId} />
+        <UploadResume preselectedJobId={selectedJobId} jobs={jobs} />
       </div>
     </div>
   );

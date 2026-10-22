@@ -1,16 +1,27 @@
-import React, { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import api from "../api";
+import { useState, useMemo } from "react";
+import api, { getErrorMessage } from "../api";
+import { saveSession } from "../session";
 
-export default function Login({ setRole }) {
-  const navigate = useNavigate();
+/**
+ * Sign-in and registration screen.
+ *
+ * The password rules mirror the API's (8+ characters, upper, lower, digit,
+ * special character) so users see problems before submitting; the API still
+ * validates everything. Recruiter registration needs the access code
+ * (HR_SIGNUP_CODE). On success the token is saved and `onLogin` is called.
+ *
+ * @param {object} props
+ * @param {(session: object) => void} props.onLogin - Receives the saved session.
+ */
+export default function Login({ onLogin }) {
   const [isRegister, setIsRegister] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({
     name: "",
     email: "",
     password: "",
-    role: "candidate"
+    role: "candidate",
+    accessCode: ""
   });
 
   const [msg, setMsg] = useState("");
@@ -29,7 +40,7 @@ export default function Login({ setRole }) {
       hasUpper: /[A-Z]/.test(pw),
       hasLower: /[a-z]/.test(pw),
       hasNumber: /[0-9]/.test(pw),
-      hasSpecial: /[!@#$%^&*(),.?":{}|<>\-_=+~`\[\]]/.test(pw)
+      hasSpecial: /[!@#$%^&*(),.?":{}|<>\-_=+~`[\]\\/;']/.test(pw) // same set as the API
     };
   }, [form.password]);
 
@@ -40,12 +51,13 @@ export default function Login({ setRole }) {
 
   const strengthConfig = useMemo(() => {
     if (!form.password) return { label: "", color: "#cbd5e1", width: "0%" };
-    if (passwordScore <= 2) return { label: "Weak", color: "#ef4444", width: "33%" };
-    if (passwordScore <= 4) return { label: "Medium", color: "#f59e0b", width: "66%" };
-    return { label: "Strong & Secure", color: "#10b981", width: "100%" };
+    if (passwordScore <= 2) return { label: "Weak", color: "#dc2626", width: "33%" };
+    if (passwordScore <= 4) return { label: "Medium", color: "#b45309", width: "66%" };
+    return { label: "Strong & Secure", color: "#047857", width: "100%" };
   }, [passwordScore, form.password]);
 
-  const submit = async () => {
+  const submit = async (e) => {
+    e?.preventDefault();
     setMsg("");
 
     const email = form.email.trim().toLowerCase();
@@ -71,59 +83,27 @@ export default function Login({ setRole }) {
         setMsg("Password must meet all complexity requirements.");
         return;
       }
+      if (form.role === "hr" && !form.accessCode.trim()) {
+        setMsg("Recruiter accounts need the access code provided by your administrator.");
+        return;
+      }
     }
 
     setLoading(true);
 
     try {
-      if (isRegister) {
-        const payload = {
-          name: form.name.trim(),
-          email: email,
-          password: password,
-          role: form.role
-        };
-        const res = await api.post("/api/register", payload);
-        if (res.data?.access_token) {
-          localStorage.setItem("token", res.data.access_token);
-        }
-        setMsg("Account registered successfully. Please sign in.");
-        setIsRegister(false);
-      } else {
-        const payload = {
-          email: email,
-          password: password
-        };
-        const res = await api.post("/api/login", payload);
-        const loggedRole = (res.data.role || "").toLowerCase().trim();
-
-        localStorage.setItem("token", res.data.access_token);
-        localStorage.setItem("role", loggedRole);
-        localStorage.setItem("user_id", String(res.data.user_id));
-        localStorage.setItem("name", res.data.name || "");
-
-        setRole(loggedRole);
-
-        if (loggedRole === "hr") {
-          navigate("/");
-        } else {
-          navigate("/candidate");
-        }
-      }
-    } catch (e) {
-      let errorMsg = "Authentication failed. Please check your credentials.";
-      if (e.response?.data?.detail) {
-        if (typeof e.response.data.detail === "string") {
-          errorMsg = e.response.data.detail;
-        } else if (Array.isArray(e.response.data.detail)) {
-          errorMsg = e.response.data.detail.map(d => d.msg || JSON.stringify(d)).join("; ");
-        } else {
-          errorMsg = JSON.stringify(e.response.data.detail);
-        }
-      } else if (e.message) {
-        errorMsg = e.message;
-      }
-      setMsg(errorMsg);
+      const res = isRegister
+        ? await api.post("/api/register", {
+            name: form.name.trim(),
+            email,
+            password,
+            role: form.role,
+            ...(form.role === "hr" ? { access_code: form.accessCode.trim() } : {})
+          })
+        : await api.post("/api/login", { email, password });
+      onLogin(saveSession(res.data));
+    } catch (err) {
+      setMsg(getErrorMessage(err, "Authentication failed. Please check your credentials."));
     } finally {
       setLoading(false);
     }
@@ -199,17 +179,19 @@ export default function Login({ setRole }) {
           </p>
         </div>
 
+        <form onSubmit={submit} noValidate>
         {/* Message Notice */}
         {msg && (
           <div
+            role="alert"
             style={{
               padding: "10px 14px",
               borderRadius: 6,
               fontSize: "13px",
               marginBottom: 16,
-              backgroundColor: msg.includes("success") || msg.includes("registered") ? "#ecfdf5" : "#fff1f2",
-              color: msg.includes("success") || msg.includes("registered") ? "#047857" : "#be123c",
-              border: `1px solid ${msg.includes("success") || msg.includes("registered") ? "#a7f3d0" : "#fecdd3"}`
+              backgroundColor: "#fff1f2",
+              color: "#be123c",
+              border: "1px solid #fecdd3"
             }}
           >
             {msg}
@@ -218,9 +200,11 @@ export default function Login({ setRole }) {
 
         {isRegister && (
           <div style={{ marginBottom: 14 }}>
-            <label style={labelStyle}>Full Name</label>
+            <label htmlFor="login-name" style={labelStyle}>Full Name</label>
             <input
+              id="login-name"
               name="name"
+              autoComplete="name"
               placeholder="e.g. Alex Johnson"
               value={form.name}
               onChange={handleChange}
@@ -230,9 +214,11 @@ export default function Login({ setRole }) {
         )}
 
         <div style={{ marginBottom: 14 }}>
-          <label style={labelStyle}>Email Address</label>
+          <label htmlFor="login-email" style={labelStyle}>Email Address</label>
           <input
+            id="login-email"
             name="email"
+            autoComplete="email"
             type="email"
             placeholder="e.g. alex@company.com"
             value={form.email}
@@ -242,19 +228,21 @@ export default function Login({ setRole }) {
         </div>
 
         <div style={{ marginBottom: 14, position: "relative" }}>
-          <label style={labelStyle}>Password</label>
+          <label htmlFor="login-password" style={labelStyle}>Password</label>
           <div style={{ position: "relative" }}>
             <input
+              id="login-password"
               name="password"
+              autoComplete={isRegister ? "new-password" : "current-password"}
               type={showPassword ? "text" : "password"}
               placeholder="Enter password"
               value={form.password}
               onChange={handleChange}
-              onKeyDown={(e) => e.key === "Enter" && submit()}
               style={{ ...inputStyle, paddingRight: 40 }}
             />
             <button
               type="button"
+              aria-label={showPassword ? "Hide password" : "Show password"}
               onClick={() => setShowPassword(!showPassword)}
               style={{
                 position: "absolute",
@@ -290,19 +278,19 @@ export default function Login({ setRole }) {
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, marginTop: 8, fontSize: "11px" }}>
-              <span style={{ color: passwordCriteria.minLength ? "#059669" : "#94a3b8" }}>
+              <span style={{ color: passwordCriteria.minLength ? "#047857" : "#64748b" }}>
                 {passwordCriteria.minLength ? "✓" : "•"} Min 8 characters
               </span>
-              <span style={{ color: passwordCriteria.hasUpper ? "#059669" : "#94a3b8" }}>
+              <span style={{ color: passwordCriteria.hasUpper ? "#047857" : "#64748b" }}>
                 {passwordCriteria.hasUpper ? "✓" : "•"} Uppercase (A-Z)
               </span>
-              <span style={{ color: passwordCriteria.hasLower ? "#059669" : "#94a3b8" }}>
+              <span style={{ color: passwordCriteria.hasLower ? "#047857" : "#64748b" }}>
                 {passwordCriteria.hasLower ? "✓" : "•"} Lowercase (a-z)
               </span>
-              <span style={{ color: passwordCriteria.hasNumber ? "#059669" : "#94a3b8" }}>
+              <span style={{ color: passwordCriteria.hasNumber ? "#047857" : "#64748b" }}>
                 {passwordCriteria.hasNumber ? "✓" : "•"} Number (0-9)
               </span>
-              <span style={{ color: passwordCriteria.hasSpecial ? "#059669" : "#94a3b8", gridColumn: "span 2" }}>
+              <span style={{ color: passwordCriteria.hasSpecial ? "#047857" : "#64748b", gridColumn: "span 2" }}>
                 {passwordCriteria.hasSpecial ? "✓" : "•"} Special character (!@#$%...)
               </span>
             </div>
@@ -312,10 +300,11 @@ export default function Login({ setRole }) {
         {/* Role Selector (Registration Only) */}
         {isRegister && (
           <div style={{ marginBottom: 18 }}>
-            <label style={labelStyle}>Account Role</label>
+            <span style={labelStyle}>Account Role</span>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               <button
                 type="button"
+                aria-pressed={form.role === "candidate"}
                 onClick={() => setForm({ ...form, role: "candidate" })}
                 style={{
                   padding: "8px",
@@ -332,6 +321,7 @@ export default function Login({ setRole }) {
               </button>
               <button
                 type="button"
+                aria-pressed={form.role === "hr"}
                 onClick={() => setForm({ ...form, role: "hr" })}
                 style={{
                   padding: "8px",
@@ -350,15 +340,32 @@ export default function Login({ setRole }) {
           </div>
         )}
 
+        {isRegister && form.role === "hr" && (
+          <div style={{ marginBottom: 18 }}>
+            <label htmlFor="login-access-code" style={labelStyle}>Recruiter Access Code</label>
+            <input
+              id="login-access-code"
+              name="accessCode"
+              type="password"
+              autoComplete="off"
+              placeholder="Provided by your administrator"
+              value={form.accessCode}
+              onChange={handleChange}
+              style={inputStyle}
+            />
+          </div>
+        )}
+
         {/* Submit Button */}
         <button
-          onClick={submit}
+          type="submit"
           disabled={loading}
           className="btn btn-primary"
           style={{ width: "100%", padding: "11px", fontSize: "14px", fontWeight: 700 }}
         >
           {loading ? "Authenticating..." : isRegister ? "Create Account" : "Sign In"}
         </button>
+        </form>
 
         {/* Toggle Mode */}
         <div style={{ textAlign: "center", marginTop: 18, fontSize: "13px", color: "#64748b" }}>

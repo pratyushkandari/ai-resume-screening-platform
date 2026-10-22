@@ -1,6 +1,16 @@
-import React from "react";
-import { API_BASE_URL } from "../api";
+import { toast } from "react-toastify";
+import { downloadResume, getErrorMessage } from "../api";
 
+/**
+ * One applicant on the recruiter dashboard: score bar, Shortlisted / Under Review
+ * badge, matched and missing skills, and actions (fit dialog, compare, download).
+ *
+ * @param {object} props
+ * @param {object} props.candidate - One entry of `summary.candidates` from the API.
+ * @param {boolean} [props.isSelected] - Whether it is selected for comparison.
+ * @param {(candidate: object) => void} [props.onViewRadar] - Opens the fit dialog.
+ * @param {(candidateId: number) => void} [props.onToggleCompare] - Adds/removes it from the comparison.
+ */
 export default function CandidateCard({
   candidate,
   isSelected = false,
@@ -10,6 +20,10 @@ export default function CandidateCard({
   if (!candidate) return null;
 
   const matchPercent = Math.round((candidate.score ?? 0) * 100);
+  const onDownload = () =>
+    downloadResume(candidate.resume_id, candidate.filename || "resume").catch((err) =>
+      toast.error(getErrorMessage(err, "Could not download the resume."))
+    );
   const isShortlisted = candidate.status === "accepted";
 
   return (
@@ -62,7 +76,7 @@ export default function CandidateCard({
         <div style={{ marginTop: 12, marginBottom: 14 }}>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: 4 }}>
             <span style={{ color: "#64748b", fontWeight: 500 }}>Match Score</span>
-            <span style={{ fontWeight: 700, color: matchPercent >= 70 ? "#059669" : "#2563eb" }}>
+            <span style={{ fontWeight: 700, color: matchPercent >= 70 ? "#047857" : "#2563eb" }}>
               {matchPercent}%
             </span>
           </div>
@@ -90,7 +104,7 @@ export default function CandidateCard({
                   </span>
                 ))
               ) : (
-                <span style={{ color: "#94a3b8", fontStyle: "italic" }}>None detected</span>
+                <span style={{ color: "#64748b", fontStyle: "italic" }}>None detected</span>
               )}
             </div>
           </div>
@@ -105,7 +119,7 @@ export default function CandidateCard({
                   </span>
                 ))
               ) : (
-                <span style={{ color: "#059669", fontWeight: 500 }}>All requirements satisfied</span>
+                <span style={{ color: "#047857", fontWeight: 500 }}>All requirements satisfied</span>
               )}
             </div>
           </div>
@@ -126,6 +140,7 @@ export default function CandidateCard({
         <div style={{ display: "flex", gap: 6 }}>
           {onViewRadar && (
             <button
+              type="button"
               onClick={() => onViewRadar(candidate)}
               className="btn btn-secondary"
               style={{ padding: "5px 9px", fontSize: 11, borderRadius: 5 }}
@@ -141,6 +156,8 @@ export default function CandidateCard({
 
           {onToggleCompare && (
             <button
+              type="button"
+              aria-pressed={isSelected}
               onClick={() => onToggleCompare(candidate.candidate_id)}
               className="btn"
               style={{
@@ -157,11 +174,15 @@ export default function CandidateCard({
           )}
         </div>
 
-        <a
-          href={`${API_BASE_URL}/api/resumes/${candidate.resume_id}/download`}
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          type="button"
+          onClick={onDownload}
+          aria-label={`Download resume of ${candidate.candidate_name || "candidate"}`}
           style={{
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            padding: 0,
             display: "inline-flex",
             alignItems: "center",
             gap: 4,
@@ -177,7 +198,7 @@ export default function CandidateCard({
             <line x1="12" x2="12" y1="15" y2="3"/>
           </svg>
           Resume
-        </a>
+        </button>
       </div>
     </div>
   );

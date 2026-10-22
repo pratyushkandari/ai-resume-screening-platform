@@ -1,20 +1,25 @@
-import React, { useState } from "react";
-import api from "../api";
+import { useState } from "react";
+import api, { getErrorMessage } from "../api";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 
+/**
+ * "Post a New Position" form for recruiters. Skills are added as tags (Enter or
+ * comma) and sent as one comma-separated field; the API normalises them. After
+ * publishing, the dashboard opens with the new job selected.
+ */
 export default function UploadJob() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [skillsText, setSkillsText] = useState("");
-  const [skillList, setSkillList] = useState(["python", "sql", "fastapi", "docker"]);
+  const [skillList, setSkillList] = useState([]);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleAddSkill = (e) => {
     if (e.key === "Enter" || e.key === ",") {
       e.preventDefault();
-      const val = skillsText.trim().toLowerCase().replace(/[^a-z0-9\+\#\.\-\s]/g, "");
+      const val = skillsText.trim().toLowerCase().replace(/[^a-z0-9+#./\-\s]/g, "");
       if (val && !skillList.includes(val)) {
         setSkillList([...skillList, val]);
       }
@@ -46,7 +51,7 @@ export default function UploadJob() {
     if (skillsText.trim()) {
       const extra = skillsText
         .split(",")
-        .map((s) => s.trim().toLowerCase().replace(/[^a-z0-9\+\#\.\-\s]/g, ""))
+        .map((s) => s.trim().toLowerCase().replace(/[^a-z0-9+#./\-\s]/g, ""))
         .filter(Boolean);
       finalSkills = Array.from(new Set([...finalSkills, ...extra]));
     }
@@ -56,28 +61,10 @@ export default function UploadJob() {
       return;
     }
 
-    const raw_user_id = localStorage.getItem("user_id");
-    const role = (localStorage.getItem("role") || "").toLowerCase().trim();
-    const user_id = Number(raw_user_id);
-
-    if (!raw_user_id || isNaN(user_id) || user_id <= 0) {
-      toast.error("Session expired. Please sign in again.");
-      localStorage.clear();
-      navigate("/");
-      return;
-    }
-
-    if (role !== "hr") {
-      toast.error("Access restricted: Only recruiters can create job postings.");
-      navigate("/");
-      return;
-    }
-
     const fd = new FormData();
     fd.append("title", cleanTitle);
     fd.append("description", cleanDesc);
     fd.append("skills", finalSkills.join(","));
-    fd.append("created_by", String(user_id));
 
     try {
       setLoading(true);
@@ -87,16 +74,14 @@ export default function UploadJob() {
       toast.success(`Position published successfully (REQ-#${jobId})`);
       navigate("/", { state: { selectedJobId: jobId } });
     } catch (err) {
-      console.error("Create job error", err);
-      const detail = err?.response?.data?.detail || err?.message || "Failed to create job requisition";
-      toast.error(detail);
+      toast.error(getErrorMessage(err, "Failed to create the job requisition."));
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div style={{ padding: "28px 32px", maxWidth: 840, margin: "0 auto" }}>
+    <div className="page" style={{ padding: "28px 32px", maxWidth: 840, margin: "0 auto" }}>
       <div className="card" style={{ padding: 28 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
           <div>
@@ -115,14 +100,15 @@ export default function UploadJob() {
         <form onSubmit={handleSubmit} style={{ display: "grid", gap: 18 }}>
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-              <label className="input-label" style={{ margin: 0 }}>
+              <label htmlFor="job-title" className="input-label" style={{ margin: 0 }}>
                 Job Title *
               </label>
-              <span style={{ fontSize: 12, color: title.length > 120 ? "#ef4444" : "#64748b" }}>
+              <span style={{ fontSize: 12, color: title.length > 120 ? "#dc2626" : "#64748b" }}>
                 {title.length}/120 characters
               </span>
             </div>
             <input
+              id="job-title"
               className="input"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -134,14 +120,15 @@ export default function UploadJob() {
 
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-              <label className="input-label" style={{ margin: 0 }}>
+              <label htmlFor="job-description" className="input-label" style={{ margin: 0 }}>
                 Job Description & Scope *
               </label>
-              <span style={{ fontSize: 12, color: description.length < 20 ? "#d97706" : "#059669" }}>
+              <span style={{ fontSize: 12, color: description.length < 20 ? "#b45309" : "#047857" }}>
                 {description.length} chars (min 20)
               </span>
             </div>
             <textarea
+              id="job-description"
               className="input"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -153,7 +140,7 @@ export default function UploadJob() {
 
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-              <label className="input-label" style={{ margin: 0 }}>
+              <label htmlFor="job-skill-input" className="input-label" style={{ margin: 0 }}>
                 Required Technical Competencies ({skillList.length}) *
               </label>
               <span style={{ fontSize: 12, color: "#64748b" }}>
@@ -182,18 +169,19 @@ export default function UploadJob() {
                   {skill}
                   <button
                     type="button"
+                    aria-label={`Remove ${skill}`}
                     onClick={() => removeSkill(skill)}
                     style={{
                       background: "transparent",
                       border: "none",
-                      color: "#93c5fd",
+                      color: "#1d4ed8",
                       cursor: "pointer",
                       fontWeight: 700,
                       padding: 0,
                       lineHeight: 1
                     }}
-                    onMouseOver={(e) => (e.currentTarget.style.color = "#ef4444")}
-                    onMouseOut={(e) => (e.currentTarget.style.color = "#93c5fd")}
+                    onMouseOver={(e) => (e.currentTarget.style.color = "#dc2626")}
+                    onMouseOut={(e) => (e.currentTarget.style.color = "#1d4ed8")}
                   >
                     ×
                   </button>
@@ -202,6 +190,7 @@ export default function UploadJob() {
             </div>
 
             <input
+              id="job-skill-input"
               className="input"
               value={skillsText}
               onChange={(e) => setSkillsText(e.target.value)}
@@ -209,7 +198,7 @@ export default function UploadJob() {
               placeholder="Type competency and press Enter (e.g. PyTorch, Redis, Kubernetes)"
             />
             <span style={{ fontSize: 12, color: "#64748b", marginTop: 4, display: "block" }}>
-              Competencies are used for exact keyword matching and semantic vector scoring.
+              Skills are matched against the text of each resume (70% of the score); the title and description drive the semantic similarity (30%).
             </span>
           </div>
 
@@ -230,7 +219,7 @@ export default function UploadJob() {
                 setTitle("");
                 setDescription("");
                 setSkillsText("");
-                setSkillList(["python", "sql", "fastapi"]);
+                setSkillList([]);
               }}
             >
               Reset

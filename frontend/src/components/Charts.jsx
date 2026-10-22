@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { Bar, Doughnut, Scatter, Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -12,6 +12,7 @@ import {
   Legend,
   Title,
 } from "chart.js";
+import { colorAt } from "../theme";
 
 ChartJS.register(
   CategoryScale,
@@ -25,11 +26,7 @@ ChartJS.register(
   Title
 );
 
-const PALETTE = [
-  "#2563eb", "#059669", "#db2777", "#d97706", "#8b5cf6",
-  "#e11d48", "#0ea5a6", "#1f2937", "#065f46", "#be185d"
-];
-
+/** Draw a ✓ or ✕ on a small white circle; used as point markers in the coverage chart. */
 function renderMarkerCanvas(symbol, fillStyle) {
   const canvas = document.createElement("canvas");
   canvas.width = 28;
@@ -54,6 +51,17 @@ function renderMarkerCanvas(symbol, fillStyle) {
   return img;
 }
 
+/**
+ * Dashboard analytics for one job, computed only from the summary API response:
+ * - bar: how many applicants have each required skill;
+ * - doughnut: strong fits (≥75%), other shortlisted, under review;
+ * - scatter: semantic fit vs. skill fit per applicant;
+ * - line: which required skills each applicant covers (✓ / ✕).
+ *
+ * @param {object} props
+ * @param {{skill_name: string, matches: number}[]} props.jobSkillCounts - `summary.job_skill_counts`.
+ * @param {object[]} props.candidates - `summary.candidates`.
+ */
 export default function Charts({ jobSkillCounts = [], candidates = [] }) {
   const skillLabels = useMemo(
     () => jobSkillCounts.map((s) => s.skill_name || s.skill || "—"),
@@ -90,19 +98,20 @@ export default function Charts({ jobSkillCounts = [], candidates = [] }) {
     layout: { padding: { top: 8, bottom: 8 } },
   }), []);
 
+  // Tiers follow the API's own decision (status "accepted" = Shortlisted), so the
+  // chart can never disagree with the "Shortlisted" / "Under Review" badges.
   const qualityBuckets = useMemo(() => {
     const buckets = { high: 0, medium: 0, low: 0 };
     (candidates || []).forEach((c) => {
-      const pct = (c.score || 0) * 100;
-      if (pct >= 75) buckets.high++;
-      else if (pct >= 50) buckets.medium++;
-      else buckets.low++;
+      if (c.status !== "accepted") buckets.low++;
+      else if ((c.score || 0) >= 0.75) buckets.high++;
+      else buckets.medium++;
     });
     return buckets;
   }, [candidates]);
 
   const donutData = useMemo(() => ({
-    labels: ["Tier 1 (≥75%)", "Tier 2 (50–74%)", "Tier 3 (<50%)"],
+    labels: ["Strong fit (≥75%)", "Shortlisted", "Under review"],
     datasets: [
       {
         data: [qualityBuckets.high, qualityBuckets.medium, qualityBuckets.low],
@@ -136,7 +145,7 @@ export default function Charts({ jobSkillCounts = [], candidates = [] }) {
 
   const scatterData = useMemo(() => {
     const datasets = (candidates || []).map((c, idx) => {
-      const color = PALETTE[idx % PALETTE.length];
+      const color = colorAt(idx);
       const semanticPct = Math.round((c.semantic || 0) * 100);
       const skillPct = Math.round((c.skill_score || 0) * 100);
       const size = Math.max(6, Math.min(12, 6 + Math.round((c.score || 0) * 6)));
@@ -165,14 +174,14 @@ export default function Charts({ jobSkillCounts = [], candidates = [] }) {
 
   const lineData = useMemo(() => {
     const datasets = (candidates || []).map((cand, idx) => {
-      const color = PALETTE[idx % PALETTE.length];
+      const color = colorAt(idx);
       const data = (cand.coverage_vector || []).map((v) => (v ? 1 : 0));
       return {
         label: cand.candidate_name || `Applicant #${cand.candidate_id}`,
         data,
         borderColor: color,
         borderWidth: 2,
-        tension: 0.25,
+        tension: 0, // straight segments: curves would overshoot above ✓ / below ✕
         showLine: true,
         fill: false,
         pointStyle: (ctx) => (ctx.raw === 1 ? tickMarker : crossMarker),
@@ -201,35 +210,28 @@ export default function Charts({ jobSkillCounts = [], candidates = [] }) {
   }), []);
 
   return (
-    <div style={{ display: "grid", gap: 14 }}>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 400px",
-          gap: 14,
-          alignItems: "start",
-        }}
-      >
+    <div className="charts-root">
+      <div className="charts-top">
         <div className="card" style={{ padding: 18, height: 340 }}>
           <h4 style={{ margin: "0 0 12px 0", fontSize: 15, fontWeight: 700, color: "#0f172a" }}>
             Requisition Skill Coverage Distribution
           </h4>
           <div style={{ height: 260 }}>
             {skillLabels.length ? (
-              <Bar data={barData} options={barOptions} />
+              <Bar data={barData} options={barOptions} aria-label="Bar chart: number of candidates having each required skill" />
             ) : (
               <div style={{ color: "#64748b", padding: 40, textAlign: "center" }}>No skill constraints defined.</div>
             )}
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateRows: "210px 250px", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateRows: "210px 250px", gridTemplateColumns: "minmax(0, 1fr)", gap: 14 }}>
           <div className="card" style={{ padding: 16 }}>
             <h4 style={{ margin: "0 0 8px 0", fontSize: 14, fontWeight: 700, color: "#0f172a" }}>
               Applicant Quality Breakdown
             </h4>
             <div style={{ width: "100%", height: 145 }}>
-              <Doughnut data={donutData} options={donutOptions} />
+              <Doughnut data={donutData} options={donutOptions} aria-label={`Doughnut chart: ${qualityBuckets.high} strong fits (75% or more), ${qualityBuckets.medium} other shortlisted, ${qualityBuckets.low} under review`} />
             </div>
           </div>
 
@@ -238,7 +240,7 @@ export default function Charts({ jobSkillCounts = [], candidates = [] }) {
               Semantic vs. Lexical Match Matrix
             </h4>
             <div style={{ height: 185 }}>
-              <Scatter data={scatterData} options={scatterOptions} />
+              <Scatter data={scatterData} options={scatterOptions} aria-label="Scatter chart of semantic fit versus skill fit for each candidate" />
             </div>
           </div>
         </div>
@@ -254,7 +256,7 @@ export default function Charts({ jobSkillCounts = [], candidates = [] }) {
 
         {skillLabels.length && candidates.length ? (
           <div style={{ height: 300 }}>
-            <Line data={lineData} options={lineOptions} />
+            <Line data={lineData} options={lineOptions} aria-label="Chart of which required skills each candidate covers" />
           </div>
         ) : (
           <div style={{ color: "#64748b", padding: 30, textAlign: "center" }}>

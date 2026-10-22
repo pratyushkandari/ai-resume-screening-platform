@@ -1,5 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
-import api from "../api";
+import { useMemo } from "react";
 import { Radar, Bar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -13,6 +12,8 @@ import {
   LinearScale,
   BarElement,
 } from "chart.js";
+import { colorAt, hexToRGBA } from "../theme";
+import Modal from "./Modal";
 import "./CompareModal.css";
 
 ChartJS.register(
@@ -27,70 +28,18 @@ ChartJS.register(
   BarElement
 );
 
-const PALETTE = [
-  "#2563eb", "#059669", "#db2777", "#d97706",
-  "#8b5cf6", "#e11d48", "#0ea5a6", "#1f2937",
-  "#065f46", "#be185d"
-];
-
-function hexToRGBA(hex, alpha = 1) {
-  const h = hex.replace("#", "");
-  const r = parseInt(h.substring(0, 2), 16) || 37;
-  const g = parseInt(h.substring(2, 4), 16) || 99;
-  const b = parseInt(h.substring(4, 6), 16) || 235;
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-export default function CompareModal({ ids = [], jobId = null, onClose }) {
-  const [loading, setLoading] = useState(false);
-  const [candidates, setCandidates] = useState([]);
-  const [jobSkills, setJobSkills] = useState([]);
-
-  useEffect(() => {
-    if (!jobId || !ids?.length) {
-      setCandidates([]);
-      return;
-    }
-
-    let isMounted = true;
-
-    async function fetchComparisonData() {
-      setLoading(true);
-      try {
-        const rawUserId = localStorage.getItem("user_id");
-        const role = (localStorage.getItem("role") || "").toLowerCase().trim();
-        const userId = Number(rawUserId);
-
-        if (!rawUserId || isNaN(userId) || userId <= 0) {
-          if (isMounted) setCandidates([]);
-          return;
-        }
-
-        const res = await api.get(`/api/jobs/${jobId}/summary`, {
-          params: { user_id: userId, role }
-        });
-
-        if (!isMounted) return;
-
-        const allCandidates = res.data?.candidates || [];
-        setJobSkills(res.data?.job_skills || []);
-        const selected = allCandidates.filter((c) => ids.includes(c.candidate_id));
-        setCandidates(selected);
-      } catch (err) {
-        console.error("Failed to load candidate comparison", err);
-        if (isMounted) setCandidates([]);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    }
-
-    fetchComparisonData();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [ids, jobId]);
-
+/**
+ * Side-by-side comparison of two or more applicants already loaded by the
+ * dashboard (no extra API call): summary cards, one radar per applicant and a
+ * stacked bar of matched skills vs. gaps.
+ *
+ * @param {object} props
+ * @param {object[]} props.candidates - Selected entries of `summary.candidates`.
+ * @param {string[]} props.jobSkills - Required skills (radar axes).
+ * @param {number|null} props.jobId - Shown in the header.
+ * @param {() => void} props.onClose - Closes the dialog.
+ */
+export default function CompareModal({ candidates = [], jobSkills = [], jobId = null, onClose }) {
   const barData = useMemo(() => ({
     labels: candidates.map((c) => c.candidate_name || `Applicant #${c.candidate_id}`),
     datasets: [
@@ -124,11 +73,10 @@ export default function CompareModal({ ids = [], jobId = null, onClose }) {
     },
   }), []);
 
-  if (!ids?.length) return null;
+  if (!candidates.length) return null;
 
   return (
-    <div className="cm-backdrop" onClick={onClose}>
-      <div className="cm-modal" onClick={(e) => e.stopPropagation()}>
+    <Modal title="Compare candidates" onClose={onClose} className="cm-modal" backdropClassName="cm-backdrop">
         <div className="cm-header">
           <div>
             <h3 style={{ margin: 0, fontSize: 18, color: "#0f172a" }}>Comparative Candidate Analysis</h3>
@@ -136,17 +84,11 @@ export default function CompareModal({ ids = [], jobId = null, onClose }) {
               Evaluating {candidates.length} profiles against Requisition #{jobId}
             </div>
           </div>
-          <button className="cm-close" onClick={onClose}>
+          <button type="button" className="cm-close" onClick={onClose}>
             ✕ Close
           </button>
         </div>
 
-        {loading ? (
-          <div style={{ padding: 40, textAlign: "center", color: "#64748b" }}>
-            Aggregating evaluation vectors...
-          </div>
-        ) : (
-          <>
             <div className="cm-summary">
               {candidates.map((c) => (
                 <div key={c.candidate_id} className="cm-card">
@@ -158,7 +100,7 @@ export default function CompareModal({ ids = [], jobId = null, onClose }) {
                   </div>
 
                   <div style={{ marginTop: 8 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "#059669", textTransform: "uppercase" }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "#047857", textTransform: "uppercase" }}>
                       Matched Competencies ({c.matched_skills?.length || 0})
                     </div>
                     <div style={{ marginTop: 4, display: "flex", flexWrap: "wrap", gap: 4 }}>
@@ -169,7 +111,7 @@ export default function CompareModal({ ids = [], jobId = null, onClose }) {
                           </span>
                         ))
                       ) : (
-                        <span style={{ color: "#94a3b8", fontSize: 12 }}>—</span>
+                        <span style={{ color: "#64748b", fontSize: 12 }}>—</span>
                       )}
                     </div>
                   </div>
@@ -186,7 +128,7 @@ export default function CompareModal({ ids = [], jobId = null, onClose }) {
                           </span>
                         ))
                       ) : (
-                        <span style={{ color: "#059669", fontSize: 12 }}>All matched</span>
+                        <span style={{ color: "#047857", fontSize: 12 }}>All matched</span>
                       )}
                     </div>
                   </div>
@@ -197,7 +139,7 @@ export default function CompareModal({ ids = [], jobId = null, onClose }) {
             <div className="cm-charts-row">
               <div className="cm-radar-grid">
                 {candidates.map((c, idx) => {
-                  const color = PALETTE[idx % PALETTE.length];
+                  const color = colorAt(idx);
                   const radarData = {
                     labels: jobSkills,
                     datasets: [
@@ -217,7 +159,9 @@ export default function CompareModal({ ids = [], jobId = null, onClose }) {
                     plugins: { legend: { display: false } },
                     scales: {
                       r: {
-                        ticks: { display: false, stepSize: 1, beginAtZero: true, max: 1 },
+                        min: 0,
+                        max: 1,
+                        ticks: { display: false, stepSize: 1 },
                         grid: { color: "rgba(0, 0, 0, 0.05)" },
                       },
                     },
@@ -229,7 +173,7 @@ export default function CompareModal({ ids = [], jobId = null, onClose }) {
                         {c.candidate_name}
                       </div>
                       <div style={{ height: 180 }}>
-                        <Radar data={radarData} options={radarOptions} />
+                        <Radar data={radarData} options={radarOptions} aria-label={`Skill coverage radar for ${c.candidate_name}`} />
                       </div>
                       <div style={{ marginTop: 8, fontSize: 12, color: "#64748b" }}>
                         Coverage: {c.coverage_percent}% • Matched: {(c.matched_skills || []).length} / {jobSkills.length}
@@ -244,13 +188,10 @@ export default function CompareModal({ ids = [], jobId = null, onClose }) {
                   Skill Overlap vs. Gaps (Stacked)
                 </h4>
                 <div style={{ height: 320 }}>
-                  <Bar data={barData} options={barOptions} />
+                  <Bar data={barData} options={barOptions} aria-label="Stacked bar chart of matched skills and skill gaps per candidate" />
                 </div>
               </div>
             </div>
-          </>
-        )}
-      </div>
-    </div>
+    </Modal>
   );
 }

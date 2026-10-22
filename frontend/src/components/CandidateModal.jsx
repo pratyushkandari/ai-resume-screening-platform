@@ -1,4 +1,3 @@
-import React from "react";
 import { Radar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -9,7 +8,10 @@ import {
   Tooltip,
   Legend
 } from "chart.js";
-import { API_BASE_URL } from "../api";
+import { toast } from "react-toastify";
+import { downloadResume, getErrorMessage } from "../api";
+import { colorAt, hexToRGBA } from "../theme";
+import Modal from "./Modal";
 
 ChartJS.register(
   RadialLinearScale,
@@ -20,23 +22,25 @@ ChartJS.register(
   Legend
 );
 
-const COLORS = [
-  "#2563eb", "#059669", "#db2777", "#d97706", "#8b5cf6",
-  "#e11d48", "#0ea5a6", "#1f2937", "#065f46", "#BE185D"
-];
-
-function hexToRGBA(hex, alpha = 1) {
-  const h = hex.replace("#", "");
-  const r = parseInt(h.substring(0, 2), 16) || 37;
-  const g = parseInt(h.substring(2, 4), 16) || 99;
-  const b = parseInt(h.substring(4, 6), 16) || 235;
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
+/**
+ * "View Fit" dialog for one applicant: overall, skill and semantic scores, matched
+ * and missing skills, a radar chart of required-skill coverage and a download button.
+ *
+ * @param {object} props
+ * @param {object|null} props.candidate - Entry from `summary.candidates`; nothing renders when null.
+ * @param {string[]} props.jobSkills - Required skills, in the same order as `coverage_vector`.
+ * @param {() => void} props.onClose - Called on Escape, backdrop click or the close button.
+ */
 export default function CandidateModal({ candidate = null, jobSkills = [], onClose }) {
   if (!candidate) return null;
 
-  const color = COLORS[(candidate.candidate_id || 0) % COLORS.length];
+  const color = colorAt(candidate.candidate_id || 0);
+  const title = candidate.candidate_name || `Candidate #${candidate.candidate_id}`;
+
+  const onDownload = () =>
+    downloadResume(candidate.resume_id, candidate.filename || "resume").catch((err) =>
+      toast.error(getErrorMessage(err, "Could not download the resume."))
+    );
 
   const radarData = {
     labels: jobSkills.length > 0 ? jobSkills : ["General Profile"],
@@ -51,38 +55,12 @@ export default function CandidateModal({ candidate = null, jobSkills = [], onClo
   };
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(15, 23, 42, 0.65)",
-        backdropFilter: "blur(4px)",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        zIndex: 9999,
-        padding: 16
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 840,
-          background: "#fff",
-          borderRadius: 16,
-          padding: 24,
-          boxShadow: "0 25px 60px rgba(0,0,0,0.25)",
-          maxHeight: "90vh",
-          overflowY: "auto"
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Modal title={`Candidate fit: ${title}`} onClose={onClose} width={840}>
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", paddingBottom: 14 }}>
           <div>
             <h2 style={{ margin: 0, color: "#0f172a", fontSize: 20 }}>
-              {candidate.candidate_name || `Candidate #${candidate.candidate_id}`}
+              {title}
             </h2>
             <div className="small" style={{ marginTop: 4 }}>
               Candidate ID: #{candidate.candidate_id} • Resume ID: #{candidate.resume_id}
@@ -90,12 +68,11 @@ export default function CandidateModal({ candidate = null, jobSkills = [], onClo
           </div>
 
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <a
-              href={`${API_BASE_URL}/api/resumes/${candidate.resume_id}/download`}
-              target="_blank"
-              rel="noreferrer"
+            <button
+              type="button"
+              onClick={onDownload}
               className="btn btn-secondary"
-              style={{ textDecoration: "none", padding: "8px 14px", fontSize: 13 }}
+              style={{ padding: "8px 14px", fontSize: 13 }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -103,8 +80,10 @@ export default function CandidateModal({ candidate = null, jobSkills = [], onClo
                 <line x1="12" x2="12" y1="15" y2="3"/>
               </svg>
               Download Resume
-            </a>
+            </button>
             <button
+              type="button"
+              aria-label="Close"
               onClick={onClose}
               style={{
                 background: "#f1f5f9",
@@ -122,7 +101,7 @@ export default function CandidateModal({ candidate = null, jobSkills = [], onClo
         </div>
 
         {/* Content Body */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 20, marginTop: 20 }}>
+        <div className="modal-body-grid">
           {/* Left Details Column */}
           <div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
@@ -158,7 +137,7 @@ export default function CandidateModal({ candidate = null, jobSkills = [], onClo
                     </span>
                   ))
                 ) : (
-                  <span style={{ color: "#94a3b8", fontSize: 13 }}>No direct skill overlaps detected.</span>
+                  <span style={{ color: "#64748b", fontSize: 13 }}>No direct skill overlaps detected.</span>
                 )}
               </div>
             </div>
@@ -188,16 +167,13 @@ export default function CandidateModal({ candidate = null, jobSkills = [], onClo
             </h4>
             <div style={{ height: 240 }}>
               <Radar
+                aria-label={`Radar chart of required skill coverage for ${title}`}
                 data={radarData}
                 options={{
                   maintainAspectRatio: false,
                   responsive: true,
                   scales: {
-                    r: {
-                      ticks: { stepSize: 1, beginAtZero: true, max: 1, display: false },
-                      suggestedMin: 0,
-                      suggestedMax: 1
-                    }
+                    r: { min: 0, max: 1, ticks: { stepSize: 1, display: false } }
                   },
                   plugins: {
                     legend: { display: false }
@@ -207,7 +183,6 @@ export default function CandidateModal({ candidate = null, jobSkills = [], onClo
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
