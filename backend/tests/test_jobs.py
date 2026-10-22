@@ -1,81 +1,57 @@
-# backend/tests/test_jobs.py
+"""Job requisitions: who may create them, input validation, skill parsing and listings."""
 
 import pytest
 
-
-def test_create_job_by_hr(client, hr_user):
-    """Test HR user can successfully create a job with skills."""
-    payload = {
-        "title": "Staff AI Engineer",
-        "description": "Building LLM infrastructure and neural search systems.",
-        "skills": "python, pytorch, transformers, fastapi, docker",
-        "created_by": hr_user["user"].user_id
-    }
-    response = client.post("/api/jobs", data=payload, headers=hr_user["headers"])
-    assert response.status_code == 200
-
-    data = response.json()
-    assert data["title"] == "Staff AI Engineer"
-    assert "python" in data["skills"]
-    assert "pytorch" in data["skills"]
+from tests.conftest import create_job
 
 
-def test_create_job_short_description_fails(client, hr_user):
-    """Test job creation fails if description is less than 20 characters."""
-    payload = {
-        "title": "Valid Job Title",
-        "description": "Too short",
-        "skills": "python, docker",
-        "created_by": hr_user["user"].user_id
-    }
-    response = client.post("/api/jobs", data=payload, headers=hr_user["headers"])
-    assert response.status_code == 400
+def test_hr_creates_job_with_normalized_skills(client, hr):
+    job = create_job(client, hr["headers"], skills="Python, Docker, docker , Machine-Learning, CI/CD")
+    assert job["created_by"] == hr["id"]
+    assert job["skills"] == ["python", "docker", "machine learning", "ci/cd"]
 
 
-def test_create_job_missing_skills_fails(client, hr_user):
-    """Test job creation fails if no valid skills are provided."""
-    payload = {
-        "title": "Valid Job Title",
-        "description": "Building high-performance distributed systems at scale.",
-        "skills": "",
-        "created_by": hr_user["user"].user_id
-    }
-    response = client.post("/api/jobs", data=payload, headers=hr_user["headers"])
-    assert response.status_code == 400
+def test_created_by_cannot_be_spoofed(client, hr, other_hr):
+    r = client.post(
+        "/api/jobs",
+        data={"title": "Spoof", "description": "x" * 30, "skills": "python", "created_by": str(other_hr["id"])},
+        headers=hr["headers"],
+    )
+    assert r.status_code == 201 and r.json()["created_by"] == hr["id"]
 
 
-def test_create_job_by_candidate_forbidden(client, candidate_user):
-    """Test candidates are forbidden from creating jobs."""
-    payload = {
-        "title": "Unauthorized Job",
-        "description": "This should fail because role is candidate.",
-        "skills": "python",
-        "created_by": candidate_user["user"].user_id
-    }
-    response = client.post("/api/jobs", data=payload, headers=candidate_user["headers"])
-    assert response.status_code == 403
+@pytest.mark.parametrize("who, code", [("anonymous", 401), ("candidate", 403)])
+def test_only_hr_can_create_jobs(client, candidate, hr, who, code):
+    headers = {} if who == "anonymous" else candidate["headers"]
+    data = {"title": "Unauthorized Job", "description": "x" * 30, "skills": "python", "created_by": str(hr["id"])}
+    assert client.post("/api/jobs", data=data, headers=headers).status_code == code
 
 
-def test_list_jobs_for_candidate(client, hr_user, candidate_user):
-    """Test candidates can list all open positions."""
-    # First create a job as HR
-    client.post("/api/jobs", data={
-        "title": "Backend Architect",
-        "description": "Distributed systems and cloud infrastructure development.",
-        "skills": "python, postgresql, docker",
-        "created_by": hr_user["user"].user_id
-    }, headers=hr_user["headers"])
-
-    # List jobs as candidate
-    response = client.get("/api/jobs", params={"role": "candidate"})
-    assert response.status_code == 200
-    jobs = response.json()
-    assert len(jobs) >= 1
-    assert any(j["title"] == "Backend Architect" for j in jobs)
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"title": "AB", "description": "x" * 30, "skills": "python"},
+        {"title": "Valid title", "description": "Too short", "skills": "python"},
+        {"title": "Valid title", "description": "x" * 30, "skills": " , ,"},
+        {"title": "Valid title", "description": "x" * 30, "skills": ",".join(f"skill{i}" for i in range(31))},
+    ],
+)
+def test_job_validation(client, hr, data):
+    assert client.post("/api/jobs", data=data, headers=hr["headers"]).status_code == 400
 
 
-def test_list_jobs_pagination(client, hr_user):
-    """Test pagination limits on job queries."""
-    response = client.get("/api/jobs", params={"role": "candidate", "page": 1, "limit": 2})
-    assert response.status_code == 200
-    assert len(response.json()) <= 2
+def test_public_listing_and_pagination(client, hr):
+    for i in range(3):
+        create_job(client, hr["headers"], title=f"Role {i}")
+    jobs = client.get("/api/jobs").json()
+    assert [j["title"] for j in jobs] == ["Role 2", "Role 1", "Role 0"]
+    assert len(client.get("/api/jobs", params={"page": 2, "limit": 2}).json()) == 1
+    assert client.get("/api/jobs", params={"limit": 500}).status_code == 422
+
+
+def test_mine_returns_only_own_jobs(client, hr, other_hr, candidate):
+    create_job(client, hr["headers"], title="Mine")
+    create_job(client, other_hr["headers"], title="Theirs")
+    assert [j["title"] for j in client.get("/api/jobs/mine", headers=hr["headers"]).json()] == ["Mine"]
+    assert client.get("/api/jobs/mine", headers=candidate["headers"]).status_code == 403
+    assert client.get("/api/jobs/mine").status_code == 401
