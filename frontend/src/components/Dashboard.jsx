@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import api from "../api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import api, { getErrorMessage } from "../api";
 import Charts from "./Charts";
 import CandidateCard from "./CandidateCard";
 import CandidateModal from "./CandidateModal";
@@ -7,6 +7,15 @@ import CompareModal from "./CompareModal";
 import { toast } from "react-toastify";
 import { useNavigate, useLocation } from "react-router-dom";
 
+/**
+ * Recruiter dashboard for one of the recruiter's own jobs.
+ *
+ * Data flow: GET /api/jobs/mine fills the job selector; GET /api/jobs/{id}/summary
+ * returns scores, skills and chart data for the selected job; "Evaluate Candidates"
+ * calls POST /api/jobs/{id}/rank (fills missing embeddings, saves a snapshot) and
+ * then reloads the summary. A job id passed in router state (after posting a job)
+ * is selected first.
+ */
 export default function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -19,88 +28,71 @@ export default function Dashboard() {
   const [openCandidate, setOpenCandidate] = useState(null);
   const [showCompare, setShowCompare] = useState(false);
 
+  // Only the most recent request may update the screen: when the recruiter switches
+  // jobs quickly, a slower response for the previous job must not overwrite the new one.
+  const latestRequest = useRef(0);
+  const selectedJob = useRef(null);
   useEffect(() => {
-    loadJobs();
-  }, []);
+    selectedJob.current = jobId;
+  }, [jobId]);
 
-  async function loadJobs() {
-    try {
-      const raw_user_id = localStorage.getItem("user_id");
-      const role = localStorage.getItem("role");
-      const user_id = Number(raw_user_id);
-
-      if (!raw_user_id || !role || isNaN(user_id) || user_id <= 0) {
-        toast.error("Invalid session. Please log in again.");
-        localStorage.clear();
-        navigate("/");
-        return;
-      }
-
-      const res = await api.get("/api/jobs", {
-        params: { user_id, role }
-      });
-
-      const jobList = res.data || [];
-      setJobs(jobList);
-
-      const targetJobId = location.state?.selectedJobId;
-      if (targetJobId && jobList.some((j) => j.job_id === targetJobId)) {
-        setJobId(targetJobId);
-        fetchSummary(targetJobId);
-      } else if (jobList.length > 0 && !jobId) {
-        setJobId(jobList[0].job_id);
-        fetchSummary(jobList[0].job_id);
-      }
-    } catch (e) {
-      toast.error("Failed to retrieve requisition list.");
-    }
-  }
-
-  async function fetchSummary(id) {
+  const fetchSummary = useCallback(async (id) => {
+    const requestId = ++latestRequest.current;
     if (!id) {
       setSummary(null);
       return;
     }
-
     setLoading(true);
     try {
-      const raw_user_id = localStorage.getItem("user_id");
-      const role = localStorage.getItem("role");
-      const user_id = Number(raw_user_id);
-
-      if (!raw_user_id || !role || isNaN(user_id) || user_id <= 0) {
-        toast.error("Session expired. Please sign in again.");
-        localStorage.clear();
-        navigate("/");
-        return;
+      const res = await api.get(`/api/jobs/${Number(id)}/summary`);
+      if (requestId === latestRequest.current) setSummary(res.data || null);
+    } catch (err) {
+      if (requestId === latestRequest.current) {
+        toast.error(getErrorMessage(err, "Failed to load candidate analytics."));
+        setSummary(null);
       }
-
-      const res = await api.get(`/api/jobs/${Number(id)}/summary`, {
-        params: { user_id, role }
-      });
-
-      setSummary(res.data || null);
-    } catch (e) {
-      const errorMsg = e.response?.data?.detail || "Failed to load candidate analytics";
-      toast.error(errorMsg);
-      setSummary(null);
     } finally {
-      setLoading(false);
+      if (requestId === latestRequest.current) setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.get("/api/jobs/mine");
+        if (cancelled) return;
+        const jobList = res.data || [];
+        setJobs(jobList);
+        const requested = location.state?.selectedJobId;
+        const initial = jobList.some((j) => j.job_id === requested) ? requested : jobList[0]?.job_id;
+        if (initial) {
+          setJobId(initial);
+          fetchSummary(initial);
+        }
+      } catch (err) {
+        if (!cancelled) toast.error(getErrorMessage(err, "Failed to load your job requisitions."));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchSummary, location.state]);
 
   async function generateRankings() {
     if (!jobId) {
-      toast.warn("Please select an active job requisition first");
+      toast.warn("Please select a job requisition first.");
       return;
     }
+    const rankedJob = jobId;
     setLoading(true);
     try {
-      const res = await api.post(`/api/jobs/${Number(jobId)}/rank`);
-      toast.success(`Evaluated and ranked ${res.data?.ranked || 0} candidate profiles.`);
-      await fetchSummary(jobId);
-    } catch (e) {
-      toast.error("Candidate evaluation pipeline encountered an error.");
+      const res = await api.post(`/api/jobs/${Number(rankedJob)}/rank`);
+      toast.success(`Re-evaluated ${res.data?.ranked || 0} resumes and saved the rankings.`);
+      // Refresh only if the recruiter is still looking at the job that was ranked.
+      if (selectedJob.current === rankedJob) await fetchSummary(rankedJob);
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Candidate evaluation failed."));
     } finally {
       setLoading(false);
     }
@@ -132,7 +124,7 @@ export default function Dashboard() {
     : 0;
 
   return (
-    <div style={{ padding: "28px 32px", maxWidth: 1320, margin: "0 auto" }}>
+    <div className="page" style={{ padding: "28px 32px", maxWidth: 1320, margin: "0 auto" }}>
       {/* Recruiter Header & Job Action Bar */}
       <div
         style={{
@@ -157,6 +149,7 @@ export default function Dashboard() {
           {/* Position Selector Dropdown */}
           <div style={{ position: "relative" }}>
             <select
+              aria-label="Select job requisition"
               value={jobId ?? ""}
               onChange={onJobSelect}
               style={{
@@ -172,7 +165,7 @@ export default function Dashboard() {
                 appearance: "none"
               }}
             >
-              <option value="">-- Select Active Position --</option>
+              <option value="">-- Select one of your positions --</option>
               {jobs.map((j) => (
                 <option key={j.job_id} value={j.job_id}>
                   REQ-{j.job_id}: {j.title}
@@ -325,7 +318,19 @@ export default function Dashboard() {
                   <span>{summary.job_skills?.length || 0} Required Skills</span>
                   <span style={{ margin: "0 6px" }}>•</span>
                   <span>{summary.candidates?.length || 0} Candidates Evaluated</span>
+                  <span style={{ margin: "0 6px" }}>•</span>
+                  <span>
+                    {summary.last_ranked_at
+                      ? `Rankings saved ${new Date(summary.last_ranked_at).toLocaleString()}`
+                      : "Rankings not saved yet"}
+                  </span>
                 </div>
+                {!summary.semantic_available && summary.candidates?.length > 0 && (
+                  <div role="note" style={{ fontSize: 12, color: "#b45309", marginTop: 6 }}>
+                    Some semantic scores are neutral (50%) because the embedding model was unavailable.
+                    Use “Evaluate Candidates” once the model is loaded to fill them in.
+                  </div>
+                )}
               </div>
 
               <div>
@@ -422,7 +427,8 @@ export default function Dashboard() {
       {/* Candidate Comparison Modal */}
       {showCompare && (
         <CompareModal
-          ids={compareIds}
+          candidates={(summary?.candidates || []).filter((c) => compareIds.includes(c.candidate_id))}
+          jobSkills={summary?.job_skills || []}
           jobId={jobId}
           onClose={() => {
             setShowCompare(false);
@@ -452,12 +458,16 @@ export default function Dashboard() {
           }}
         >
           <div style={{ fontSize: 13, fontWeight: 600 }}>
-            {compareIds.length} candidate{compareIds.length > 1 ? "s" : ""} selected for comparison
+            {compareIds.length < 2
+              ? "Select one more candidate to compare"
+              : `${compareIds.length} candidates selected for comparison`}
           </div>
 
           <div style={{ display: "flex", gap: 8 }}>
             <button
               onClick={() => setShowCompare(true)}
+              disabled={compareIds.length < 2}
+              title={compareIds.length < 2 ? "Select at least two candidates" : undefined}
               className="btn btn-primary"
               style={{ fontSize: 12, padding: "6px 14px" }}
             >
@@ -466,7 +476,7 @@ export default function Dashboard() {
             <button
               onClick={() => setCompareIds([])}
               className="btn btn-ghost"
-              style={{ fontSize: 12, padding: "6px 10px", color: "#94a3b8" }}
+              style={{ fontSize: 12, padding: "6px 10px", color: "#cbd5e1" }}
             >
               Clear
             </button>

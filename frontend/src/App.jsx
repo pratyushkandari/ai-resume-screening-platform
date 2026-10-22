@@ -1,24 +1,52 @@
-import React, { useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
-import Dashboard from "./components/Dashboard";
-import CandidatePage from "./components/CandidatePage";
+import { toast } from "react-toastify";
 import Login from "./components/Login";
-import UploadJob from "./components/UploadJob";
-import UploadResume from "./components/UploadResume";
+import { clearSession, getSession } from "./session";
 
+// Each role downloads only its own screens (candidates never load Chart.js).
+const Dashboard = lazy(() => import("./components/Dashboard"));
+const UploadJob = lazy(() => import("./components/UploadJob"));
+const CandidatePage = lazy(() => import("./components/CandidatePage"));
+const UploadResume = lazy(() => import("./components/UploadResume"));
+
+/**
+ * Application shell: header, navigation and role-based routes.
+ *
+ * Without a session it renders the login screen. With one, recruiters (role
+ * "hr") get the dashboard and job form; candidates get the job list and the
+ * resume upload. These routes only shape the UI: the API enforces every
+ * permission on its own, so editing localStorage grants nothing.
+ * An expired token (any 401) fires "session-expired", which returns to login.
+ */
 export default function App() {
-  const [role, setRole] = useState(localStorage.getItem("role"));
+  const [session, setSession] = useState(getSession);
   const navigate = useNavigate();
   const location = useLocation();
 
-  const handleLogout = () => {
-    localStorage.clear();
-    setRole(null);
+  useEffect(() => {
+    const onExpired = () => {
+      setSession(null);
+      toast.info("Your session has expired. Please sign in again.");
+    };
+    window.addEventListener("session-expired", onExpired);
+    return () => window.removeEventListener("session-expired", onExpired);
+  }, []);
+
+  const handleLogin = (newSession) => {
+    setSession(newSession);
     navigate("/");
   };
 
-  if (!role) return <Login setRole={setRole} />;
+  const handleLogout = () => {
+    clearSession();
+    setSession(null);
+    navigate("/");
+  };
 
+  if (!session) return <Login onLogin={handleLogin} />;
+
+  const { role, name } = session;
   const isHR = role === "hr";
 
   return (
@@ -26,7 +54,11 @@ export default function App() {
       {/* Modern Enterprise Header */}
       <header className="app-header">
         <div
-          onClick={() => navigate(isHR ? "/" : "/candidate")}
+          onClick={() => navigate("/")}
+          onKeyDown={(e) => e.key === "Enter" && navigate("/")}
+          role="link"
+          tabIndex={0}
+          aria-label="TalentFlow home"
           className="brand-logo"
         >
           <div className="brand-icon">
@@ -71,8 +103,8 @@ export default function App() {
             /* Candidate Navigation */
             <>
               <button
-                onClick={() => navigate("/candidate")}
-                className={`nav-link-btn ${location.pathname === "/candidate" || location.pathname === "/" ? "active" : ""}`}
+                onClick={() => navigate("/")}
+                className={`nav-link-btn ${location.pathname === "/" ? "active" : ""}`}
               >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="11" cy="11" r="8"/>
@@ -122,10 +154,10 @@ export default function App() {
                 fontWeight: "700"
               }}
             >
-              {(localStorage.getItem("name") || "U").charAt(0).toUpperCase()}
+              {(name || "U").charAt(0).toUpperCase()}
             </div>
             <span style={{ fontSize: "13px", fontWeight: "600", color: "#f1f5f9" }}>
-              {localStorage.getItem("name") || "User"}
+              {name || "User"}
             </span>
             <span
               style={{
@@ -175,6 +207,7 @@ export default function App() {
 
       {/* Application Routing */}
       <main style={{ flex: 1, paddingBottom: 40 }}>
+        <Suspense fallback={<div role="status" style={{ padding: 40, textAlign: "center", color: "#64748b" }}>Loading…</div>}>
         <Routes>
           {isHR ? (
             <>
@@ -187,12 +220,20 @@ export default function App() {
           ) : (
             <>
               <Route path="/" element={<CandidatePage />} />
-              <Route path="/candidate" element={<CandidatePage />} />
-              <Route path="/upload-resume" element={<UploadResume />} />
+              <Route path="/candidate" element={<Navigate to="/" replace />} />
+              <Route
+                path="/upload-resume"
+                element={
+                  <div className="page" style={{ padding: "28px 32px" }}>
+                    <UploadResume />
+                  </div>
+                }
+              />
               <Route path="*" element={<Navigate to="/" replace />} />
             </>
           )}
         </Routes>
+        </Suspense>
       </main>
     </div>
   );

@@ -1,137 +1,101 @@
-import React, { useEffect, useState, useRef } from "react";
-import api from "../api";
+import { useEffect, useRef, useState } from "react";
+import api, { getErrorMessage } from "../api";
 import { toast } from "react-toastify";
-import { useNavigate, useLocation } from "react-router-dom";
+import useUpload from "../hooks/useUpload";
 
-const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024; // 15MB
-const ALLOWED_EXTS = [".pdf", ".docx", ".doc", ".txt"];
+const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024; // must match MAX_UPLOAD_MB on the server
+const MAX_FILES = 25; // must match MAX_BATCH_FILES on the server
+const ALLOWED_EXTS = [".pdf", ".docx", ".txt"];
 
-export default function UploadResume({ preselectedJobId }) {
-  const navigate = useNavigate();
-  const location = useLocation();
+/**
+ * Resume submission form. `jobs` can be passed in by a parent that already
+ * loaded them (CandidatePage); otherwise they are fetched here.
+ */
+export default function UploadResume({ preselectedJobId, jobs: jobsProp }) {
   const fileInputRef = useRef(null);
+  const { upload, progress, phase, busy } = useUpload();
 
-  const [jobs, setJobs] = useState([]);
-  const [jobId, setJobId] = useState(preselectedJobId || "");
+  const [fetchedJobs, setFetchedJobs] = useState([]);
+  const jobs = jobsProp ?? fetchedJobs;
+  const [jobId, setJobId] = useState(preselectedJobId ? String(preselectedJobId) : "");
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [fileErrors, setFileErrors] = useState([]);
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadResult, setUploadResult] = useState(null);
 
   useEffect(() => {
-    loadJobs();
-  }, []);
+    if (jobsProp) return;
+    api
+      .get("/api/jobs")
+      .then((res) => setFetchedJobs(res.data || []))
+      .catch((err) => toast.error(getErrorMessage(err, "Failed to load open positions.")));
+  }, [jobsProp]);
 
   useEffect(() => {
-    if (preselectedJobId) {
-      setJobId(String(preselectedJobId));
-    }
+    if (preselectedJobId) setJobId(String(preselectedJobId));
   }, [preselectedJobId]);
 
-  async function loadJobs() {
-    try {
-      const res = await api.get("/api/jobs", { params: { role: "candidate" } });
-      const jobList = res.data || [];
-      setJobs(jobList);
-
-      const params = new URLSearchParams(location.search);
-      const paramJobId = params.get("jobId");
-      if (paramJobId) {
-        setJobId(paramJobId);
-      } else if (!jobId && jobList.length > 0 && !preselectedJobId) {
-        setJobId(String(jobList[0].job_id));
-      }
-    } catch (e) {
-      toast.error("Failed to load active job vacancies.");
-    }
-  }
+  useEffect(() => {
+    if (!jobId && jobs.length > 0) setJobId(String(jobs[0].job_id));
+  }, [jobs, jobId]);
 
   function validateAndSetFiles(filesArray) {
     const valid = [];
     const errors = [];
-
     filesArray.forEach((file) => {
-      const ext = "." + file.name.split(".").pop().toLowerCase();
+      const ext = file.name.includes(".") ? "." + file.name.split(".").pop().toLowerCase() : "";
       if (!ALLOWED_EXTS.includes(ext)) {
-        errors.push(`'${file.name}' rejected: Unsupported file format (${ext}). Allowed: .pdf, .docx, .doc, .txt`);
+        errors.push(`'${file.name}': unsupported format${ext ? ` (${ext})` : ""}. Allowed: ${ALLOWED_EXTS.join(", ")}`);
       } else if (file.size > MAX_FILE_SIZE_BYTES) {
-        errors.push(`'${file.name}' rejected: Exceeds 15MB limit (${(file.size / (1024 * 1024)).toFixed(1)}MB).`);
+        errors.push(`'${file.name}': exceeds the 15 MB limit (${(file.size / (1024 * 1024)).toFixed(1)} MB).`);
       } else if (file.size === 0) {
-        errors.push(`'${file.name}' rejected: File is empty.`);
+        errors.push(`'${file.name}': file is empty.`);
       } else {
         valid.push(file);
       }
     });
-
-    if (errors.length > 0) {
-      setFileErrors(errors);
-      toast.warn(`${errors.length} file(s) failed validation.`);
-    } else {
-      setFileErrors([]);
+    if (valid.length > MAX_FILES) {
+      errors.push(`Only ${MAX_FILES} files can be submitted at once; the rest were ignored.`);
+      valid.length = MAX_FILES;
     }
-
+    setFileErrors(errors);
+    if (errors.length) toast.warn(`${errors.length} file(s) were not accepted.`);
     setSelectedFiles(valid);
     setUploadResult(null);
   }
 
-  function handleFileChange(e) {
-    if (e.target.files) {
-      validateAndSetFiles(Array.from(e.target.files));
-    }
-  }
-
   function handleDrop(e) {
     e.preventDefault();
-    if (e.dataTransfer.files) {
-      validateAndSetFiles(Array.from(e.dataTransfer.files));
-    }
+    if (e.dataTransfer.files) validateAndSetFiles(Array.from(e.dataTransfer.files));
   }
 
-  async function submitBatch() {
-    if (selectedFiles.length === 0) {
-      toast.warn("Please select a resume file (.pdf, .docx, or .txt)");
+  async function submit() {
+    if (!jobId) {
+      toast.warn("Please choose the position you are applying for.");
       return;
     }
-
-    setUploading(true);
-    setUploadProgress(20);
-
+    if (selectedFiles.length === 0) {
+      toast.warn("Please select a resume file (.pdf, .docx or .txt).");
+      return;
+    }
+    const fd = new FormData();
+    fd.append("job_id", jobId);
     try {
-      const fd = new FormData();
-      if (jobId) {
-        fd.append("job_id", jobId);
-      }
-
+      let result;
       if (selectedFiles.length === 1) {
         fd.append("file", selectedFiles[0]);
-        setUploadProgress(60);
-        const res = await api.post("/api/resumes/upload", fd);
-        setUploadProgress(100);
-        toast.success("Application and resume submitted successfully!");
-        setUploadResult({
-          total_files: 1,
-          successful: 1,
-          results: [{ filename: selectedFiles[0].name, status: "processed" }]
-        });
+        const data = await upload("/api/resumes/upload", fd);
+        result = { successful: 1, failed: 0, results: [{ ...data, filename: selectedFiles[0].name }] };
       } else {
-        selectedFiles.forEach((file) => {
-          fd.append("files", file);
-        });
-        setUploadProgress(50);
-        const res = await api.post("/api/resumes/batch-upload", fd);
-        setUploadProgress(100);
-        toast.success(`Batch submission complete: ${res.data?.successful || 0} resumes processed.`);
-        setUploadResult(res.data);
+        selectedFiles.forEach((file) => fd.append("files", file));
+        result = await upload("/api/resumes/batch-upload", fd);
       }
-
+      setUploadResult(result);
+      if (result.failed) toast.warn(`${result.successful} processed, ${result.failed} failed.`);
+      else toast.success(result.successful === 1 ? "Resume submitted." : `${result.successful} resumes submitted.`);
       setSelectedFiles([]);
       if (fileInputRef.current) fileInputRef.current.value = "";
-    } catch (e) {
-      const errorDetail = e.response?.data?.detail || "Resume upload processing failed.";
-      toast.error(errorDetail);
-    } finally {
-      setUploading(false);
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Resume upload failed."));
     }
   }
 
@@ -149,13 +113,14 @@ export default function UploadResume({ preselectedJobId }) {
 
         {/* Position Selector */}
         <div style={{ marginBottom: 20 }}>
-          <label className="input-label">Target Position</label>
+          <label htmlFor="upload-job" className="input-label">Target Position</label>
           <select
+            id="upload-job"
             value={jobId}
             onChange={(e) => setJobId(e.target.value)}
             style={{ fontSize: 14 }}
           >
-            <option value="">-- General Talent Pool (Unassigned) --</option>
+            {jobs.length === 0 && <option value="">No open positions</option>}
             {jobs.map((j) => (
               <option key={j.job_id} value={j.job_id}>
                 REQ-{j.job_id}: {j.title}
@@ -169,6 +134,10 @@ export default function UploadResume({ preselectedJobId }) {
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
+          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && fileInputRef.current?.click()}
+          role="button"
+          tabIndex={0}
+          aria-label="Choose resume files"
           style={{
             border: "2px dashed #cbd5e1",
             borderRadius: 12,
@@ -185,8 +154,8 @@ export default function UploadResume({ preselectedJobId }) {
             ref={fileInputRef}
             type="file"
             multiple
-            accept=".pdf,.docx,.doc,.txt"
-            onChange={handleFileChange}
+            accept=".pdf,.docx,.txt"
+            onChange={(e) => e.target.files && validateAndSetFiles(Array.from(e.target.files))}
             style={{ display: "none" }}
           />
 
@@ -214,7 +183,7 @@ export default function UploadResume({ preselectedJobId }) {
             Click or drag & drop your resume here
           </div>
           <p style={{ margin: 0, color: "#64748b", fontSize: 13 }}>
-            Supported formats: <strong>PDF, DOCX, DOC, TXT</strong> (Up to 15MB)
+            Supported formats: <strong>PDF, DOCX, TXT</strong> (Up to 15MB)
           </p>
         </div>
 
@@ -262,17 +231,17 @@ export default function UploadResume({ preselectedJobId }) {
         )}
 
         {/* Progress Bar */}
-        {uploading && (
-          <div style={{ marginTop: 16 }}>
+        {busy && (
+          <div style={{ marginTop: 16 }} aria-live="polite">
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 600, color: "#475569", marginBottom: 4 }}>
-              <span>Analyzing resume and vectorizing competencies...</span>
-              <span>{uploadProgress}%</span>
+              <span>{phase === "processing" ? "Uploaded. Extracting text, skills and embeddings..." : "Uploading..."}</span>
+              <span>{progress}%</span>
             </div>
             <div style={{ height: 6, width: "100%", backgroundColor: "#e2e8f0", borderRadius: 3, overflow: "hidden" }}>
               <div
                 style={{
                   height: "100%",
-                  width: `${uploadProgress}%`,
+                  width: `${progress}%`,
                   backgroundColor: "#2563eb",
                   transition: "width 0.3s ease"
                 }}
@@ -283,8 +252,9 @@ export default function UploadResume({ preselectedJobId }) {
 
         {/* Submit Button */}
         <button
-          onClick={submitBatch}
-          disabled={uploading || selectedFiles.length === 0}
+          type="button"
+          onClick={submit}
+          disabled={busy || selectedFiles.length === 0 || !jobId}
           className="btn btn-primary"
           style={{
             width: "100%",
@@ -294,26 +264,36 @@ export default function UploadResume({ preselectedJobId }) {
             fontWeight: 700
           }}
         >
-          {uploading ? "Submitting Application..." : "Submit Application"}
+          {busy ? "Submitting Application..." : "Submit Application"}
         </button>
 
-        {/* Success Confirmation */}
+        {/* Per-file results */}
         {uploadResult && (
           <div
+            role="status"
             style={{
               marginTop: 18,
               padding: 16,
-              backgroundColor: "#ecfdf5",
-              border: "1px solid #a7f3d0",
+              backgroundColor: uploadResult.failed ? "#fffbeb" : "#ecfdf5",
+              border: `1px solid ${uploadResult.failed ? "#fde68a" : "#a7f3d0"}`,
               borderRadius: 8
             }}
           >
-            <div style={{ fontWeight: 700, color: "#047857", fontSize: 14, marginBottom: 4 }}>
-              Application Successfully Submitted
+            <div style={{ fontWeight: 700, color: uploadResult.failed ? "#92400e" : "#047857", fontSize: 14, marginBottom: 6 }}>
+              {uploadResult.failed
+                ? `${uploadResult.successful} submitted, ${uploadResult.failed} could not be processed`
+                : "Application successfully submitted"}
             </div>
-            <div style={{ fontSize: 13, color: "#065f46" }}>
-              Your resume has been indexed and submitted for review against the selected position.
-            </div>
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: "#334155" }}>
+              {uploadResult.results.map((r, i) => (
+                <li key={`${r.filename}-${i}`}>
+                  <strong>{r.filename}</strong>:{" "}
+                  {r.status === "processed"
+                    ? `received${r.parsed?.skills?.length ? ` (skills detected: ${r.parsed.skills.join(", ")})` : ""}`
+                    : r.error}
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </div>
