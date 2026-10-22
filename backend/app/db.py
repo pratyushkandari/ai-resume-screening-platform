@@ -1,42 +1,61 @@
-# backend/app/db.py
+"""Database engine, session factory and the request-scoped session dependency."""
 
-import os
+from __future__ import annotations
+
 import logging
-from dotenv import load_dotenv
+from typing import Iterator
+
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.engine import Engine, make_url
+from sqlalchemy.orm import Session, declarative_base, sessionmaker
+from sqlalchemy.pool import StaticPool
 
-load_dotenv()
-logger = logging.getLogger(__name__)
+from .config import settings
 
-SQLALCHEMY_DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://resume_user1:Resume123@localhost:5432/resume_db1"
-)
+logger = logging.getLogger("db")
 
-# Connect pool parameters for production scalability
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20
-)
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+def normalize_database_url(url: str) -> str:
+    """Pin the PostgreSQL driver explicitly.
+
+    ``postgresql://`` means psycopg2 on SQLAlchemy 2.0 but psycopg 3 on 2.1+.
+    The project ships psycopg2, so make the choice explicit to keep both working.
+    """
+    if url.startswith("postgres://"):
+        url = "postgresql://" + url[len("postgres://"):]
+    if url.startswith("postgresql://"):
+        url = "postgresql+psycopg2://" + url[len("postgresql://"):]
+    return url
+
+
+def build_engine(url: str) -> Engine:
+    """Create the SQLAlchemy engine for ``url``.
+
+    PostgreSQL gets a connection pool (10 + 20 overflow) with ``pool_pre_ping``
+    so connections dropped by the server are replaced transparently. SQLite
+    allows use from FastAPI's worker threads, and an in-memory database uses a
+    single shared connection (``StaticPool``) so every session sees the same data.
+    """
+    url = normalize_database_url(url)
+    if url.startswith("sqlite"):
+        kwargs = {"connect_args": {"check_same_thread": False}}
+        if url in ("sqlite://", "sqlite:///:memory:"):
+            kwargs["poolclass"] = StaticPool  # one shared in-memory database
+        return create_engine(url, **kwargs)
+    return create_engine(url, pool_pre_ping=True, pool_size=10, max_overflow=20)
+
+
+engine = build_engine(settings.database_url)
+SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 Base = declarative_base()
 
+logger.info("[DB] Using %s", make_url(normalize_database_url(settings.database_url)).render_as_string(hide_password=True))
 
-def _mask_url(url: str) -> str:
+
+def get_db() -> Iterator[Session]:
+    """FastAPI dependency: one session per request, always closed."""
+    db = SessionLocal()
     try:
-        if "@" in url:
-            left, right = url.split("@", 1)
-            if "//" in left:
-                userinfo = left.split("//", 1)[1]
-                user = userinfo.split(":")[0]
-                return f"{user}:****@{right}"
-        return "redacted"
-    except Exception:
-        return "redacted"
-
-
-logger.info("[DB] Configured host: %s", _mask_url(SQLALCHEMY_DATABASE_URL))
+        yield db
+    finally:
+        db.close()

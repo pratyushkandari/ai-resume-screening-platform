@@ -1,1 +1,1 @@
-# backend/tests/__init__.py
+"""Backend test suite (pytest). Shared fixtures live in ``conftest.py``."""

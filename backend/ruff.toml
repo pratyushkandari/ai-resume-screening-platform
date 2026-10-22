@@ -1,0 +1,18 @@
+# Lint configuration shared by `make lint`, CI and editors.
+line-length = 130
+target-version = "py311"
+
+[lint]
+# F: Pyflakes (unused/undefined names), E9: syntax errors, B: bugbear (likely bugs),
+# D: pydocstyle (every module, class and function is documented).
+select = ["F", "E9", "B", "D"]
+# B008: FastAPI's dependency-injection idiom (`Depends(...)` as a default) is intended.
+# D105/D107: magic methods and __init__ are documented on their class.
+ignore = ["B008", "D105", "D107"]
+
+[lint.pydocstyle]
+convention = "google"
+
+[lint.per-file-ignores]
+# Test names describe the behaviour under test; a docstring per test would repeat them.
+"tests/test_*.py" = ["D103"]

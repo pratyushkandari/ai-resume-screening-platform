@@ -1,100 +1,139 @@
-# backend/tests/conftest.py
+"""Shared fixtures.
 
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
-from sqlalchemy.ext.compiler import compiles
-from sqlalchemy.dialects.postgresql import JSONB
+The environment is configured *before* the app is imported: an in-memory SQLite
+database (or ``TEST_DATABASE_URL``, e.g. a PostgreSQL service in CI), a
+temporary upload folder, no embedding model and an unreachable Redis, so the
+suite is fast, offline and never touches real data.
+"""
 
-# Ensure JSONB maps to JSON on SQLite
-@compiles(JSONB, 'sqlite')
-def compile_jsonb_sqlite(type_, compiler, **kw):
-    return 'JSON'
+import io
+import os
+import secrets
+import tempfile
+from pathlib import Path
 
-from app.main import app
-from app.db import Base
-from app.auth import get_db, hash_password, create_access_token
-from app import models
+os.environ["APP_ENV"] = "test"
+os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL") or "sqlite:///:memory:"
+os.environ["UPLOAD_DIR"] = tempfile.mkdtemp(prefix="resume-test-uploads-")
+os.environ["HR_SIGNUP_CODE"] = "test-hr-code"
+os.environ["JWT_SECRET_KEY"] = secrets.token_urlsafe(32)
+os.environ["EMBEDDING_MODEL"] = "none"
+os.environ["REDIS_URL"] = "redis://127.0.0.1:1/0"
+os.environ["REQUIRE_EMBEDDING_MODEL"] = "false"
 
-# In-memory SQLite for isolated unit and integration tests
-SQLALCHEMY_TEST_DATABASE_URL = "sqlite:///:memory:"
+import numpy as np  # noqa: E402
+import pytest  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
 
-engine_test = create_engine(
-    SQLALCHEMY_TEST_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine_test)
+from app import auth, models  # noqa: E402
+from app.db import Base, SessionLocal, engine  # noqa: E402
+from app.main import app  # noqa: E402
+from app.ml_utils import EMBEDDING_DIM, embedding_model  # noqa: E402
+from app.rate_limit import reset_memory_counters  # noqa: E402
+
+auth.BCRYPT_ROUNDS = 4  # fast hashing in tests; production uses 12
+SAMPLE_RESUMES = Path(__file__).resolve().parents[2] / "sample_test_resumes"
+PASSWORD = "Str0ng!Passw0rd"
 
 
 @pytest.fixture(scope="session", autouse=True)
-def setup_test_database():
-    """Create test tables before tests and drop after session."""
-    Base.metadata.create_all(bind=engine_test)
+def _schema():
+    """Create all tables once for the whole test session and drop them at the end."""
+    Base.metadata.create_all(bind=engine)
     yield
-    Base.metadata.drop_all(bind=engine_test)
+    Base.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture(autouse=True)
+def _clean_state():
+    """Give every test an empty database, fresh rate-limit counters and no model."""
+    reset_memory_counters()
+    yield
+    with engine.begin() as conn:
+        for table in reversed(Base.metadata.sorted_tables):
+            conn.execute(table.delete())
+    reset_memory_counters()
+    embedding_model._model = None
 
 
 @pytest.fixture
-def db_session():
-    """Yield an isolated database session per test with automatic rollback."""
-    connection = engine_test.connect()
-    transaction = connection.begin()
-    session = TestingSessionLocal(bind=connection)
-
-    yield session
-
-    session.close()
-    transaction.rollback()
-    connection.close()
-
-
-@pytest.fixture
-def client(db_session):
-    """FastAPI TestClient with overridden get_db dependency."""
-    def override_get_db():
-        try:
-            yield db_session
-        finally:
-            pass
-
-    app.dependency_overrides[get_db] = override_get_db
+def client():
+    """An HTTP client that calls the FastAPI app in-process (runs start-up and shutdown hooks)."""
     with TestClient(app) as test_client:
         yield test_client
-    app.dependency_overrides.clear()
 
 
 @pytest.fixture
-def hr_user(db_session):
-    """Creates and returns a test HR user with pre-generated JWT token."""
-    user = models.User(
-        name="Test Recruiter",
-        email="hr.test@company.com",
-        password=hash_password("password123"),
-        role="hr"
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
+def db():
+    """A database session for tests that inspect or prepare rows directly."""
+    with SessionLocal() as session:
+        yield session
 
-    token = create_access_token({"user_id": user.user_id, "role": user.role, "name": user.name})
-    return {"user": user, "token": token, "headers": {"Authorization": f"Bearer {token}"}}
+
+def make_user(role: str, email: str, name: str = "Test User") -> dict:
+    """Create a user directly in the database and return its id, email and auth headers."""
+    with SessionLocal() as session:
+        user = models.User(name=name, email=email, password=auth.hash_password(PASSWORD), role=role)
+        session.add(user)
+        session.commit()
+        token = auth.create_access_token(user)
+        return {"id": user.user_id, "email": email, "headers": {"Authorization": f"Bearer {token}"}}
 
 
 @pytest.fixture
-def candidate_user(db_session):
-    """Creates and returns a test Candidate user with pre-generated JWT token."""
-    user = models.User(
-        name="Test Candidate",
-        email="candidate.test@example.com",
-        password=hash_password("password123"),
-        role="candidate"
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
+def hr():
+    """A recruiter who owns the jobs created in a test."""
+    return make_user("hr", "hr.owner@acme.com", "Owner Recruiter")
 
-    token = create_access_token({"user_id": user.user_id, "role": user.role, "name": user.name})
-    return {"user": user, "token": token, "headers": {"Authorization": f"Bearer {token}"}}
+
+@pytest.fixture
+def other_hr():
+    """A second recruiter, used to prove recruiters cannot see each other's jobs."""
+    return make_user("hr", "hr.other@acme.com", "Other Recruiter")
+
+
+@pytest.fixture
+def candidate():
+    """A candidate account."""
+    return make_user("candidate", "cand@example.com", "Casey Candidate")
+
+
+def create_job(client, headers, title="Backend Engineer", skills="python, docker, sql, fastapi",
+               description="Build and operate Python APIs with Docker and SQL databases."):
+    """Create a job through the API as the given user and return its JSON."""
+    response = client.post("/api/jobs", data={"title": title, "description": description, "skills": skills}, headers=headers)
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+def upload_text(client, headers, job_id, text, filename="resume.txt"):
+    """Upload ``text`` as a .txt resume to ``job_id`` through the API and return the response."""
+    return client.post(
+        "/api/resumes/upload",
+        files={"file": (filename, io.BytesIO(text.encode("utf-8")), "text/plain")},
+        data={"job_id": str(job_id)},
+        headers=headers,
+    )
+
+
+class FakeModel:
+    """Deterministic stand-in for SentenceTransformer: bag-of-words hashed into 384 dims."""
+
+    def encode(self, texts, **_):
+        """Hash each word into one of 384 buckets and L2-normalise, like a tiny bag-of-words model."""
+        out = []
+        for text in texts:
+            vec = np.zeros(EMBEDDING_DIM)
+            for word in text.lower().split():
+                vec[sum(map(ord, word)) % EMBEDDING_DIM] += 1.0
+            norm = np.linalg.norm(vec)
+            out.append(vec / norm if norm else vec)
+        return np.array(out)
+
+
+@pytest.fixture
+def fake_model():
+    """Install ``FakeModel`` as the loaded embedding model for one test."""
+    embedding_model._model = FakeModel()
+    yield embedding_model._model
+    embedding_model._model = None
