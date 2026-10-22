@@ -1,75 +1,63 @@
-# =============================================================================
-#  Render Blueprint Specification (Infrastructure as Code)
-#  Provisions PostgreSQL, Redis, FastAPI Backend, and React Frontend in 1 Click
-# =============================================================================
+# Render Blueprint: managed PostgreSQL + Redis, the FastAPI service and the static frontend.
+# Values marked "sync: false" must be entered in the Render dashboard.
+# Note: Render's disk is ephemeral unless you attach a persistent disk, so uploaded
+# resume files would be lost on redeploy. Attach a disk and set UPLOAD_DIR to it.
 
 databases:
   - name: resume-db
-    databaseName: resume_db1
-    user: resume_user1
+    databaseName: resume_db
+    user: resume_user
     plan: free
     region: oregon
     ipAllowList: []
 
 services:
-  # ---------------------------------------------------------------------------
-  # Distributed Redis 7 Cache & Rate Limiting Service
-  # ---------------------------------------------------------------------------
   - type: redis
     name: resume-redis
     region: oregon
     plan: free
     ipAllowList: []
 
-  # ---------------------------------------------------------------------------
-  # FastAPI Application Backend Web Service
-  # ---------------------------------------------------------------------------
   - type: web
     name: resume-screening-backend
-    env: python
+    runtime: python
     region: oregon
-    plan: free
+    plan: starter            # the embedding model needs more than the 512 MB free tier
     rootDir: backend
-    buildCommand: "pip install --upgrade pip && pip install -r requirements.txt"
-    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
-    healthCheckPath: /healthz
+    buildCommand: >-
+      pip install --upgrade pip &&
+      pip install torch --index-url https://download.pytorch.org/whl/cpu &&
+      pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers
+    healthCheckPath: /readyz
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.9"
+      - key: FORWARDED_ALLOW_IPS   # Render's router (private network) sets the client IP
+        value: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+      - key: APP_ENV
+        value: production
       - key: DATABASE_URL
-        fromDatabase:
-          name: resume-db
-          property: connectionString
+        fromDatabase: { name: resume-db, property: connectionString }
       - key: REDIS_URL
-        fromService:
-          type: redis
-          name: resume-redis
-          property: connectionString
+        fromService: { type: redis, name: resume-redis, property: connectionString }
       - key: JWT_SECRET_KEY
         generateValue: true
-      - key: ACCESS_TOKEN_EXPIRE_MINUTES
-        value: "1440"
-      - key: UPLOAD_DIR
-        value: "uploads"
+      - key: HR_SIGNUP_CODE
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false          # e.g. https://resume-screening-frontend.onrender.com
 
-  # ---------------------------------------------------------------------------
-  # React Frontend (Static Web Application)
-  # ---------------------------------------------------------------------------
   - type: web
     name: resume-screening-frontend
-    env: static
-    region: oregon
-    plan: free
+    runtime: static
     rootDir: frontend
-    buildCommand: "npm install && npm run build"
+    buildCommand: npm ci && npm run build
     staticPublishPath: dist
     routes:
       - type: rewrite
         source: /*
         destination: /index.html
     envVars:
-      - key: VITE_API_URL
-        fromService:
-          type: web
-          name: resume-screening-backend
-          property: host
+      - key: VITE_API_URL   # host name only; the app adds https://
+        fromService: { type: web, name: resume-screening-backend, property: host }
