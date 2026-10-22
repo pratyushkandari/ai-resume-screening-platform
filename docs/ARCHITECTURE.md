@@ -1,147 +1,127 @@
-# System Architecture & Technical Design Document
+# Architecture
 
-**Status:** Implemented & Production-Ready  
-**Domain:** High-Throughput AI Resume Screening & Competency Matching  
-**Engineers:** Platform Engineering & Machine Learning Team  
-**Reviewers:** Staff Systems Architect, Principal ML Engineer  
-
----
-
-## 1. Context & Motivation
-
-High-volume talent acquisition pipelines at top product companies receive tens of thousands of resumes per quarter. Traditional keyword search systems suffer from severe limitations:
-1. **Zero Domain Awareness:** Pure substring matching fails on semantic synonyms (e.g., candidate with *"Kubernetes & ECS"* missed for a job requiring *"Container Orchestration"*).
-2. **False-Positive Collisions:** Substring search creates catastrophic false matches (e.g., matching the skill *"R"* inside *"programming"*, or *"C"* inside *"Docker"*).
-3. **Generative LLM Infeasibility:** Passing full resumes through large language models (e.g., GPT-4) costs ~$0.03 to $0.06 per document, introduces non-deterministic variance, and creates unacceptable p99 latencies (1,500ms to 4,000ms per candidate). At 10,000 resumes, this results in $300–$600 per requisition and hours of serial wait time.
-
-### Solution Design
-This system combines **deterministic word-boundary lexical feature extraction** with **dense semantic vector embeddings** ($d = 384$) executed via vectorized NumPy BLAS matrix operations.
+## Overview
 
 ```
-                              ┌──────────────────────────────────────────────┐
-                              │           Client Application (React 18)      │
-                              └──────────────────────┬───────────────────────┘
-                                                     │ HTTPS / REST
-                                                     ▼
-┌────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                FastAPI Gateway & Observability                                 │
-│  ┌───────────────────────┐   ┌───────────────────────────┐   ┌───────────────────────────────┐ │
-│  │   Auth Guard (JWT)    │   │  Trace Middleware (UUID)  │   │   Prometheus Metrics Engine   │ │
-│  └───────────────────────┘   └───────────────────────────┘   └───────────────────────────────┘ │
-└──────────────────────┬─────────────────────────────┬───────────────────────────────────────────┘
-                       │                             │
-                       ▼                             ▼
-┌──────────────────────────────────────────┐  ┌──────────────────────────────────────────────────┐
-│        Document Ingestion Pipeline       │  │        Vectorized Matrix Ranking Engine          │
-│  - Multi-Format Parser (PDF/DOCX/TXT)    │  │  - SentenceTransformer (all-MiniLM-L6-v2)        │
-│  - Word-Boundary Regex Skill Extractor   │  │  - BLAS NumPy Dot-Product Matrix Cosine Sim      │
-│  - Contact Extraction (RFC Regex)        │  │  - 70/30 Composite Weighting + Proficiency Bonus │
-└──────────────────────┬───────────────────┘  └──────────────────────┬───────────────────────────┘
-                       │                                             │
-                       ▼                                             ▼
-┌──────────────────────────────────────────┐  ┌──────────────────────────────────────────────────┐
-│      Persistence: PostgreSQL 15 Engine   │  │         Distributed Cache: Redis 7.0             │
-│  - Relational Schema with Constraints    │  │  - Sub-1ms Cache-Aside for Job Summaries         │
-│  - Connection Pooling (size=10, max=20)  │  │  - Key Invalidation on Requisition Mutate        │
-└──────────────────────────────────────────┘  └──────────────────────────────────────────────────┘
+Browser (React SPA)
+   │  HTTPS, JSON / multipart, Authorization: Bearer <JWT>
+   ▼
+Nginx (Docker) or Vite dev proxy  ── serves the SPA, forwards /api to the API
+   ▼
+FastAPI app (backend/app)
+   ├─ middleware: request ID + latency + metrics, security headers, CORS allow-list
+   ├─ routers:   auth · jobs · resumes · rankings · ops
+   ├─ services:  ingestion · ranking · skills
+   ├─ ml_utils:  extraction, parsing, embeddings (MiniLM, in-process), scoring
+   ├─ PostgreSQL via SQLAlchemy (SQLite in dev/tests)
+   ├─ Redis (optional): summary cache + rate-limit counters
+   └─ upload folder (UPLOAD_DIR): original resume files
 ```
 
----
+It is a single deployable service. The embedding model runs inside the API
+process and loads in a background thread at start-up.
 
-## 2. Mathematical Formulation & Scoring Engine
+## Main flows
 
-Candidate evaluation uses a two-tier composite formulation balancing hard technical prerequisites with semantic capability alignment:
+### Resume upload (`POST /api/resumes/upload`, `/batch-upload`)
+1. Authenticated user, existing job, at most `MAX_BATCH_FILES` files.
+2. Each file: extension allow-list (`.pdf .docx .txt`), content-signature check,
+   streamed to disk with a size cap (`MAX_UPLOAD_MB`), stored as
+   `<random>_<original name>` inside `UPLOAD_DIR`.
+3. Text extraction (pypdf / python-docx / encoding-aware TXT). Unreadable,
+   encrypted or image-only files fail with a per-file error and are deleted.
+4. All readable texts of the request are embedded in **one** batched model call.
+5. Each resume is stored inside its own savepoint: applicant lookup, resume row,
+   skill links. One failure never leaves partial rows or blocks the batch. The
+   applicant is the signed-in account for candidate uploads, and the email in the
+   document for recruiter uploads (see the API reference).
+6. One commit (if it fails, the stored files are deleted); the job's cached summary
+   is invalidated.
 
-$$\text{Final Score} = \min\left(1.0, \; \alpha \cdot S_{\text{lexical}} + \beta \cdot S_{\text{semantic}} + \gamma\right)$$
+### Dashboard (`GET /api/jobs/{id}/summary`)
+1. Recruiter must own the job.
+2. Cache-aside: Redis key `job:summary:{id}` (TTL `SUMMARY_CACHE_TTL_SECONDS`).
+3. On a miss: the job's skills, all resumes with candidates and skills are loaded
+   with a **constant number of queries** (eager `selectinload`, verified by a test).
+4. `score_candidates` scores every resume (one matrix-vector product for all cosines).
+5. One entry per candidate (their best resume), skill coverage counts, top skills
+   among this job's applicants, `last_ranked_at`, and `semantic_available`.
 
-Where:
-* $\alpha = 0.70$ (Hard skill overlap weight)
-* $\beta = 0.30$ (Semantic cosine similarity weight)
-* $\gamma = 0.05$ (Proficiency bonus, applied if $S_{\text{lexical}} \ge 0.70$)
+### Evaluate (`POST /api/jobs/{id}/rank`)
+Locks the job row (PostgreSQL `SELECT ... FOR UPDATE`, so two simultaneous clicks
+run one after the other), computes any embeddings that were missing at upload time
+(model unavailable then), re-scores all resumes, replaces the job's `rankings`
+snapshot and invalidates the cache. `GET /api/jobs/{id}/rankings` returns the snapshot.
 
-### 2.1 Lexical Skill Match ($S_{\text{lexical}}$)
-Given a set of canonical job requirements $R = \{r_1, r_2, \dots, r_m\}$ and candidate extracted skills $C = \{c_1, c_2, \dots, c_k\}$:
+## Scoring
 
-$$S_{\text{lexical}} = \begin{cases} \frac{|R \cap C|}{|R|} & \text{if } |R| > 0 \\ 1.0 & \text{if } |R| = 0 \land |C| > 0 \\ 0.5 & \text{otherwise} \end{cases}$$
+See the formula in the [README](../README.md#how-scoring-works). Constants live at
+the top of `ml_utils.py`. A missing embedding contributes a neutral 0.5 rather
+than a random vector, and the response flags it (`semantic_available: false`).
 
-### 2.2 Dense Vector Cosine Similarity ($S_{\text{semantic}}$)
-Both job requirements and candidate resume texts are encoded into 384-dimensional dense vectors using a distilled MiniLM bi-encoder:
+## Data model
 
-$$\mathbf{e}_{\text{job}}, \mathbf{e}_{\text{resume}} \in \mathbb{R}^{384}$$
-
-For a batch of $N$ candidates, the candidate embeddings are stacked into a matrix $\mathbf{E} \in \mathbb{R}^{N \times 384}$. Cosine similarity across all candidates is evaluated in a single vectorized matrix-vector dot product:
-
-$$\mathbf{s}_{\text{raw}} = \frac{\mathbf{E} \cdot \mathbf{e}_{\text{job}}}{\|\mathbf{E}\|_2 \|\mathbf{e}_{\text{job}}\|_2}$$
-
-Cosine similarity in range $[-1.0, 1.0]$ is mapped monotonically to unit interval $[0.0, 1.0]$:
-
-$$S_{\text{semantic}} = \text{clip}\left(\frac{\mathbf{s}_{\text{raw}} + 1.0}{2.0}, \; 0.0, \; 1.0\right)$$
-
-### 2.3 Automated Decision Boundary
-Candidates with $\text{Final Score} \ge 0.60$ receive status `accepted` (shortlisted for technical screening); otherwise `rejected`.
-
----
-
-## 3. High-Throughput Batch Processing & BLAS Acceleration
-
-### 3.1 Why BLAS Matrix Multiplication over External Vector DBs?
-For applicant screening within a single job requisition ($N \approx 100 \text{ to } 10,000$ applicants):
-* **External Vector DB (Pinecone/Milvus):** Network transit + serialization round-trip = 25ms to 80ms latency.
-* **In-Memory NumPy BLAS (OpenBLAS/MKL):** Hardware-vectorized CPU dot-product evaluates **1,000 candidate vectors against the job requisition in 18.35ms** (throughput: **54,496 candidates/sec**).
-
-When scaling to cross-requisition enterprise talent graph searches ($N > 10,000,000$), the system supports PostgreSQL `pgvector` with HNSW indexes as documented in our migration path.
-
-### 3.2 Word-Boundary Skill Extraction (Zero False-Positives)
-To eliminate lexical collisions, regular expression compilation uses negative lookbehind and lookahead:
-
-```python
-pattern = r"(?<![a-zA-Z0-9])" + re.escape(skill_canonical) + r"(?![a-zA-Z0-9])"
-```
-* Single-letter and short tokens (`c`, `r`, `ai`, `go`) are safely extracted without colliding against words like *docker*, *programming*, *email*, or *algorithm*.
-* Multi-token and special-character skills (`c++`, `c#`, `.net`) are normalized with symbol preservation.
-
----
-
-## 4. Storage Architecture & Relational Schema
-
-PostgreSQL 15 serves as the single source of truth:
-
-```sql
-users (user_id, name, email, password_hash, role)
-  │
-  ├── jobs (job_id, created_by, title, description, embedding)
-  │     ├── job_skills (job_id, skill_id, required_level) ──> skills (skill_id, skill_name)
-  │     └── rankings (job_id, resume_id, score, status)
-  │
-candidates (candidate_id, full_name, email, phone)
-  │
-  └── resumes (resume_id, candidate_id, job_id, upload_path, raw_text, parsed_json, embedding)
-        └── resume_skills (resume_id, skill_id, confidence) ──> skills
-```
-
-### Key Engineering Decisions:
-* **Cascading Referentials:** Candidate and requisition deletions automatically cascade to resume vectors and rankings without orphaned records.
-* **JSONB Variants:** Embeddings and parsed contact dictionaries use multi-dialect JSON types (`JSONB` on PostgreSQL with binary indexing, fallback to standard `JSON` on test SQLite).
-* **Connection Pooling:** SQLAlchemy `QueuePool` configured with `pool_size=10`, `max_overflow=20`, and `pool_pre_ping=True` to immediately detect stale connection drops behind load balancers.
-
----
-
-## 5. Security Architecture & Threat Model
-
-| Vector | Threat | Mitigation |
+| Table | Purpose | Key constraints |
 |---|---|---|
-| **Identity** | Session hijacking, forged claims | RFC 7519 JWT signed with HMAC-SHA256, strict expiry validation (`iat`, `exp`), Bearer HTTPAuthorization header. |
-| **Passwords** | Rainbow tables, GPU hash cracking | Native Bcrypt with work factor of 12 rounds (`salt = gensalt(12)`). Automatic 72-byte string truncation to prevent buffer attacks. |
-| **Input Injection** | SQL Injection, XSS in resumes | 100% Parameterized SQLAlchemy ORM queries; HTML tag & script stripping via `_sanitize_text` regex. |
-| **File Storage** | Path traversal, zip bombs, binary exploits | Strict extension whitelist (`.pdf`, `.docx`, `.doc`, `.txt`); file size bounded to 15MB with chunk-streaming abort; UUID path hashing (`uuid4[:8]_safe_name`). |
-| **Denial of Service** | Microservice exhaustion via massive batch | Maximum limit of 100 items per request; streaming batch chunks; sliding-window rate limiting in Redis. |
+| users | login identities, `role` = hr / candidate | unique email |
+| jobs | requisitions, `created_by` → users, embedding | FK SET NULL |
+| skills | shared vocabulary (canonical lowercase) | unique name |
+| job_skills | job ↔ skill | unique (job_id, skill_id) |
+| candidates | applicant profiles parsed from resumes | unique email |
+| resumes | file path (relative), text, parsed JSON, embedding, job | FK candidate CASCADE, job SET NULL |
+| resume_skills | resume ↔ skill with match confidence | unique (resume_id, skill_id) |
+| rankings | saved evaluation snapshot | unique (job_id, resume_id) |
 
----
+The schema is created by `Base.metadata.create_all` at start-up (only missing
+tables; `app/schema.py`, retried by `/readyz` if the database was down) and by
+`sql/seed.sql` for Docker; both define the same columns, constraints and indexes
+(including `lower(email)` indexes used by login and applicant lookup). At start-up,
+skills that differ only by case/spelling (e.g. `Docker`/`docker`) are merged.
 
-## 6. Observability & SRE Metrics (RED Method)
+## Security model
 
-The service exposes standardized Prometheus metrics on `GET /metrics`:
-* **Rate:** `http_requests_total`, `http_endpoint_requests_total{path="..."}`
-* **Errors:** `http_status_code_total{code="5xx"}`
-* **Duration:** Custom request tracing headers `X-Request-ID` and `X-Response-Time-MS` attached to all HTTP transactions.
-* **Cache Telemetry:** `redis_cache_hits_total` and `redis_cache_misses_total` for cache-hit ratio monitoring.
+* Passwords: bcrypt (cost 12), max 72 bytes, strength rules; no plaintext fallback.
+* Tokens: HS256 JWT with `sub`, `role`, `exp`; the role used for authorization is
+  always re-read from the database. Default lifetime 60 minutes.
+* Authorization: `require_role(["hr"])` plus `get_owned_job` on every recruiter
+  endpoint, including file download. Client-supplied role/user ids are ignored.
+* Recruiter sign-up requires `HR_SIGNUP_CODE` (constant-time comparison).
+* Login and registration are rate limited per client IP (Redis or in-process).
+  The client IP comes from `X-Forwarded-For` only when the request arrives from a
+  proxy on a private network (`FORWARDED_ALLOW_IPS`), and Nginx overwrites that
+  header, so clients cannot spoof their IP to bypass the limit.
+* A failed login always runs one bcrypt check (a dummy hash for unknown emails), so
+  response time does not reveal which emails have accounts.
+* Production (`APP_ENV=production`) refuses to start without a private
+  `JWT_SECRET_KEY`.
+* CORS allow-list, `nosniff`/`DENY`/`no-referrer` headers on the API and a
+  Content-Security-Policy on the SPA (Nginx).
+* Uploads: allow-list + signature check + size/count limits; filenames are
+  reduced to a base name and prefixed with a random token; downloads are
+  attachments and require the owning recruiter.
+
+## Observability
+
+* `X-Request-ID` (propagated or generated) and `X-Response-Time-MS` on every response.
+* Middleware order: CORS → security headers → tracing → routes. Unexpected errors are
+  logged with the request ID and returned as JSON 500s inside that chain, so they
+  still carry CORS headers and the browser can show the message.
+* `/metrics`: request counts and latency sums per route template, cache hits/misses,
+  model-loaded gauge (per process).
+* `/healthz` liveness; `/readyz` checks the database and, when
+  `REQUIRE_EMBEDDING_MODEL` is on (default in production), the model.
+
+## Limitations
+
+* Weights (0.7 / 0.3 / 0.05) and threshold (0.6) are not tuned on labelled data;
+  there is no evaluation set yet.
+* Skill matching is lexical: aliases cover common variants only, and context
+  ("no experience with Java") is not understood.
+* MiniLM truncates long inputs, so long resumes are embedded mostly from their beginning.
+* Ingestion is synchronous; very large batches are bounded by `MAX_BATCH_FILES`
+  rather than handled by a background queue.
+* Uploaded files live on a filesystem path; multiple replicas need shared
+  (ReadWriteMany) storage or a move to object storage.
+* No schema migration tool: new columns require a migration step (e.g. Alembic).
+* Account emails are not verified, so an account only proves control of the
+  password, not of the email address.
