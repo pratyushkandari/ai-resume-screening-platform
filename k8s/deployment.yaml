@@ -1,13 +1,30 @@
 # =============================================================================
-#  Kubernetes Production Deployment & Service Manifest
+#  Backend Deployment, Service and shared upload volume.
+#  Prerequisites (not included here): a PostgreSQL database, a Redis instance,
+#  an Ingress for the frontend/API, an image pushed to your registry, and:
+#    kubectl create secret generic resume-backend-secrets \
+#      --from-literal=database-url='postgresql+psycopg2://USER:PASS@HOST:5432/DB' \
+#      --from-literal=jwt-secret="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')" \
+#      --from-literal=hr-signup-code='...'
 # =============================================================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: resume-uploads
+spec:
+  # Every replica reads and writes the same files, so the volume must be ReadWriteMany
+  # (NFS, Azure Files, EFS, Filestore...). Without RWX storage run a single replica.
+  accessModes: ["ReadWriteMany"]
+  resources:
+    requests:
+      storage: 10Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: resume-screener-backend
   labels:
     app: resume-screener-backend
-    tier: api
 spec:
   replicas: 2
   selector:
@@ -18,59 +35,73 @@ spec:
       labels:
         app: resume-screener-backend
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+        seccompProfile: { type: RuntimeDefault }
       containers:
         - name: backend
-          image: resume-screener-backend:latest
+          image: resume-screener-backend:latest   # replace with <registry>/<image>:<tag>
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
               name: http
           env:
+            - name: APP_ENV
+              value: "production"
             - name: DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: resume-db-secrets
-                  key: database-url
+              valueFrom: { secretKeyRef: { name: resume-backend-secrets, key: database-url } }
             - name: JWT_SECRET_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: resume-app-secrets
-                  key: jwt-secret
+              valueFrom: { secretKeyRef: { name: resume-backend-secrets, key: jwt-secret } }
+            - name: HR_SIGNUP_CODE
+              valueFrom: { secretKeyRef: { name: resume-backend-secrets, key: hr-signup-code, optional: true } }
+            - name: REDIS_URL
+              value: "redis://redis:6379/0"
+            - name: CORS_ORIGINS
+              value: "https://resumes.example.com"
             - name: UPLOAD_DIR
               value: "/app/uploads"
+            # Trust X-Forwarded-For only from in-cluster proxies (the ingress controller).
+            - name: FORWARDED_ALLOW_IPS
+              value: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            - name: uploads
+              mountPath: /app/uploads
           resources:
-            requests:
-              memory: "512Mi"
-              cpu: "250m"
-            limits:
-              memory: "1Gi"
-              cpu: "1000m"
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: 8000
-            initialDelaySeconds: 15
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 3
-          readinessProbe:
-            httpGet:
-              path: /readyz
-              port: 8000
-            initialDelaySeconds: 10
+            requests: { memory: "768Mi", cpu: "250m" }
+            limits: { memory: "1536Mi", cpu: "1000m" }
+          startupProbe:             # the embedding model loads after start-up
+            httpGet: { path: /readyz, port: http }
             periodSeconds: 5
+            failureThreshold: 36    # up to 3 minutes
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 10
             timeoutSeconds: 3
-            failureThreshold: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: resume-uploads
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: resume-screener-backend-service
+  name: resume-screener-backend
 spec:
   type: ClusterIP
   selector:
     app: resume-screener-backend
   ports:
-    - protocol: TCP
+    - name: http
       port: 8000
-      targetPort: 8000
+      targetPort: http

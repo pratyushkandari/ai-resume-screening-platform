@@ -1,49 +1,31 @@
 #!/usr/bin/env bash
-# =============================================================================
-#  1-Click Automated Deployment Script (Linux / macOS / Cloud EC2)
-# =============================================================================
-set -e
+# Set up and verify the project on Linux/macOS.
+#   ./deploy.sh            install dependencies, run tests, build the frontend
+#   ./deploy.sh docker     build and start the Docker Compose stack
+#   ./deploy.sh test       run the backend tests only
+set -euo pipefail
+cd "$(dirname "$0")"
+MODE="${1:-setup}"
 
-echo "============================================================"
-echo "  🚀 AI Resume Screening & Matching System - Auto Deploy"
-echo "============================================================"
-
-MODE="${1:-dev}"
-
-if [ "$MODE" = "docker" ]; then
-    echo "[1/1] Starting Docker multi-container stack..."
+case "$MODE" in
+  docker)
+    [ -f .env ] || { echo "Create .env from .env.example first (JWT_SECRET_KEY, POSTGRES_PASSWORD)."; exit 1; }
     docker compose up --build
-    exit 0
-fi
-
-if [ "$MODE" = "benchmark" ]; then
-    echo "[1/1] Running Concurrency & Latency Benchmark..."
-    cd backend
-    python3 benchmark_concurrency.py
-    exit 0
-fi
-
-if [ "$MODE" = "test" ]; then
-    echo "[1/1] Running Pytest Suite..."
-    cd backend
-    pytest tests/ -v
-    exit 0
-fi
-
-echo "[1/3] Setting up Python backend..."
-cd backend
-if [ ! -d "venv" ]; then
-    python3 -m venv venv
-fi
-source venv/bin/activate
-pip install --upgrade pip --quiet
-pip install -r requirements.txt --quiet
-pytest tests/ -v --tb=short
-
-echo "[2/3] Setting up Frontend..."
-cd ../frontend
-npm install --silent
-npm run build
-
-echo "[3/3] System is verified and ready!"
-echo "Run 'docker compose up --build' or launch backend and frontend servers."
+    ;;
+  test)
+    # Use the project virtualenv created by "setup" when it exists.
+    (cd backend && { [ -f .venv/bin/activate ] && . .venv/bin/activate; true; } && python3 -m pytest -q)
+    ;;
+  setup)
+    echo "[1/3] Backend dependencies"
+    (cd backend && { [ -d .venv ] || python3 -m venv .venv; } && . .venv/bin/activate \
+      && pip install --quiet --upgrade pip && pip install --quiet -r requirements-dev.txt \
+      && echo "[2/3] Backend tests" && python -m pytest -q)
+    echo "[3/3] Frontend build"
+    (cd frontend && npm ci --no-audit --no-fund && npm run build)
+    echo "Done. Start the API:  cd backend && . .venv/bin/activate && uvicorn app.main:app --reload"
+    echo "Start the UI:   cd frontend && npm run dev   (http://localhost:5173)"
+    ;;
+  *)
+    echo "Usage: $0 [setup|test|docker]"; exit 1 ;;
+esac
