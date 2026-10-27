@@ -3,6 +3,14 @@ import api, { getErrorMessage } from "../api";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 
+/** Split comma-separated input into skill tags, keeping only the characters the API keeps. */
+function parseSkills(text) {
+  return text
+    .split(",")
+    .map((s) => s.trim().toLowerCase().replace(/[^a-z0-9+#./\-\s]/g, "").trim())
+    .filter(Boolean);
+}
+
 /**
  * "Post a New Position" form for recruiters. Skills are added as tags (Enter or
  * comma) and sent as one comma-separated field; the API normalises them. After
@@ -16,13 +24,12 @@ export default function UploadJob() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  // A pasted "Python, Docker, SQL" becomes three tags, not one "python docker sql" skill
+  // that no resume would ever match.
   const handleAddSkill = (e) => {
     if (e.key === "Enter" || e.key === ",") {
       e.preventDefault();
-      const val = skillsText.trim().toLowerCase().replace(/[^a-z0-9+#./\-\s]/g, "");
-      if (val && !skillList.includes(val)) {
-        setSkillList([...skillList, val]);
-      }
+      setSkillList((prev) => Array.from(new Set([...prev, ...parseSkills(skillsText)])));
       setSkillsText("");
     }
   };
@@ -47,14 +54,7 @@ export default function UploadJob() {
       return;
     }
 
-    let finalSkills = [...skillList];
-    if (skillsText.trim()) {
-      const extra = skillsText
-        .split(",")
-        .map((s) => s.trim().toLowerCase().replace(/[^a-z0-9+#./\-\s]/g, ""))
-        .filter(Boolean);
-      finalSkills = Array.from(new Set([...finalSkills, ...extra]));
-    }
+    const finalSkills = Array.from(new Set([...skillList, ...parseSkills(skillsText)]));
 
     if (finalSkills.length === 0) {
       toast.warn("Please specify at least one required skill (e.g. Python, Docker).");
@@ -133,6 +133,7 @@ export default function UploadJob() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={6}
+              maxLength={10000}
               placeholder="Outline the core responsibilities, qualifications, and target technical domain..."
               required
             />
