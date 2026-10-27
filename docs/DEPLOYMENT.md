@@ -54,6 +54,7 @@ nano .env
 #   JWT_SECRET_KEY=<python3 -c "import secrets; print(secrets.token_urlsafe(48))">
 #   HR_SIGNUP_CODE=<code you give to recruiters>   (empty = recruiter sign-up disabled)
 #   CORS_ORIGINS=http://<your-domain-or-public-ip>
+#   Leave APP_ENV and REQUIRE_EMBEDDING_MODEL commented out: Compose then runs in production mode.
 chmod 600 .env
 
 docker compose up -d --build        # first build downloads PyTorch and the model
