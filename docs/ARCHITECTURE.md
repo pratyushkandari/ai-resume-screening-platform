@@ -24,10 +24,12 @@ process and loads in a background thread at start-up.
 ## Main flows
 
 ### Resume upload (`POST /api/resumes/upload`, `/batch-upload`)
-1. Authenticated user, existing job, at most `MAX_BATCH_FILES` files.
+1. Authenticated user within the per-account upload rate limit, an existing job
+   (a recruiter must own it), at most `MAX_BATCH_FILES` files.
 2. Each file: extension allow-list (`.pdf .docx .txt`), content-signature check,
    streamed to disk with a size cap (`MAX_UPLOAD_MB`), stored as
-   `<random>_<original name>` inside `UPLOAD_DIR`.
+   `<random>_<original name>` inside `UPLOAD_DIR` (characters invalid in file
+   names replaced, length capped in bytes).
 3. Text extraction (pypdf / python-docx / encoding-aware TXT). Unreadable,
    encrypted or image-only files fail with a per-file error and are deleted.
 4. All readable texts of the request are embedded in **one** batched model call.
@@ -89,7 +91,8 @@ skills that differ only by case/spelling (e.g. `Docker`/`docker`) are merged.
 * Login and registration are rate limited per client IP (Redis or in-process).
   The client IP comes from `X-Forwarded-For` only when the request arrives from a
   proxy on a private network (`FORWARDED_ALLOW_IPS`), and Nginx overwrites that
-  header, so clients cannot spoof their IP to bypass the limit.
+  header, so clients cannot spoof their IP to bypass the limit. Uploads are rate
+  limited per signed-in account (`UPLOAD_RATE_LIMIT_PER_MINUTE`).
 * A failed login always runs one bcrypt check (a dummy hash for unknown emails), so
   response time does not reveal which emails have accounts.
 * Production (`APP_ENV=production`) refuses to start without a private
@@ -98,7 +101,9 @@ skills that differ only by case/spelling (e.g. `Docker`/`docker`) are merged.
   Content-Security-Policy on the SPA (Nginx).
 * Uploads: allow-list + signature check + size/count limits; filenames are
   reduced to a base name and prefixed with a random token; downloads are
-  attachments and require the owning recruiter.
+  attachments and require the owning recruiter. Recruiters can upload only to
+  their own jobs, and their uploads never rename an existing applicant profile
+  (profiles are shared by every job the applicant applied to).
 
 ## Observability
 
@@ -123,5 +128,7 @@ skills that differ only by case/spelling (e.g. `Docker`/`docker`) are merged.
 * Uploaded files live on a filesystem path; multiple replicas need shared
   (ReadWriteMany) storage or a move to object storage.
 * No schema migration tool: new columns require a migration step (e.g. Alembic).
+* The candidate job list shows the newest 50 positions; the UI has no paging yet
+  (`GET /api/jobs` supports `page`/`limit`).
 * Account emails are not verified, so an account only proves control of the
   password, not of the email address.

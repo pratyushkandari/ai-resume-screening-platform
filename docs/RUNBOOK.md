@@ -7,7 +7,7 @@ are in [DEPLOYMENT.md](DEPLOYMENT.md). This page covers configuration and incide
 
 | Variable | Required | Notes |
 |---|---|---|
-| `APP_ENV=production` | yes | Enables fail-fast checks and model-required readiness |
+| `APP_ENV=production` | yes | Enables fail-fast checks and model-required readiness. Compose defaults to it; do not set `APP_ENV=development` in `./.env` |
 | `DATABASE_URL` | yes | `postgresql+psycopg2://user:pass@host:5432/db` (`postgresql://` is also accepted) |
 | `JWT_SECRET_KEY` | yes | Random, ≥ 32 chars; rotating it signs everyone out |
 | `HR_SIGNUP_CODE` | no | Empty disables recruiter self-registration |
@@ -17,8 +17,8 @@ are in [DEPLOYMENT.md](DEPLOYMENT.md). This page covers configuration and incide
 | `FORWARDED_ALLOW_IPS` | set in the image | Proxies allowed to set the client IP (default: private networks). Never `*` |
 
 Numeric settings (`MAX_UPLOAD_MB`, `MAX_BATCH_FILES`, `ACCESS_TOKEN_EXPIRE_MINUTES`,
-`SUMMARY_CACHE_TTL_SECONDS`, rate limits) are validated at start-up; an invalid value
-stops the process with a message naming the variable.
+`SUMMARY_CACHE_TTL_SECONDS`, `LOGIN_`/`REGISTER_`/`UPLOAD_RATE_LIMIT_PER_MINUTE`) are
+validated at start-up; an invalid value stops the process with a message naming the variable.
 
 ## Start / stop
 
@@ -64,6 +64,11 @@ in development, where a random key is generated per process).
 are limited together, the API sees the proxy's IP instead of the client's: Uvicorn
 must run with `--proxy-headers` and the proxy's address must be inside
 `FORWARDED_ALLOW_IPS` (private networks by default).
+
+**429 Too Many Requests on upload** — one account sent more than
+`UPLOAD_RATE_LIMIT_PER_MINUTE` upload requests (default 10; a batch counts once)
+within the current minute. Raise the value in `.env` if recruiters legitimately
+upload more, or set `0` to disable.
 
 **A user reports an error with a request ID** — search the API logs for that ID;
 the full traceback is logged next to it.

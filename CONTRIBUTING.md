@@ -12,7 +12,7 @@ cd frontend && npm ci
 ## Before opening a pull request
 
 ```bash
-cd backend && ruff check . && pytest -q -W error      # lint (incl. docstrings) + 157 tests
+cd backend && ruff check . && pytest -q -W error      # lint (incl. docstrings) + 165 tests
 cd frontend && npm run lint && npm run build
 ```
 

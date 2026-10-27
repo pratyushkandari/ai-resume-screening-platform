@@ -154,5 +154,5 @@ async def login(request: Request, db: Session = Depends(get_db)) -> TokenOut:
 
 @router.get("/me", response_model=UserOut)
 def me(current_user: models.User = Depends(get_current_user)) -> UserOut:
-    """Profile of the signed-in user (the frontend uses it to check a stored token)."""
+    """Profile of the signed-in user; API clients can call it to check that a token is still valid."""
     return UserOut(user_id=current_user.user_id, name=current_user.name, email=current_user.email, role=current_user.role)
