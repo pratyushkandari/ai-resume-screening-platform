@@ -8,7 +8,7 @@ of the vocabulary used to scan future resumes.
 from __future__ import annotations
 
 import logging
-from typing import Dict, Iterable, List
+from typing import Dict, Iterable, List, Tuple
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
@@ -55,10 +55,26 @@ def merge_duplicate_skills(db: Session) -> int:
     Older versions stored e.g. ``"Docker"`` and ``"docker"`` separately. Links
     are moved to the oldest row (dropping links that would become duplicates)
     and the duplicate rows are deleted. Returns the number of rows removed.
+
+    Runs on every start-up, so it first reads only ids and names, and loads the
+    (potentially very many) resume/job links only for rows that need changing.
     """
+    names: Dict[str, List[Tuple[int, str]]] = {}
+    for skill_id, skill_name in db.query(models.Skill.skill_id, models.Skill.skill_name):
+        names.setdefault(normalize_skill(skill_name or ""), []).append((skill_id, skill_name))
+    affected = [
+        skill_id
+        for name, rows in names.items()
+        if name and (len(rows) > 1 or rows[0][1] != name)
+        for skill_id, _ in rows
+    ]
+    if not affected:
+        return 0
+
     skills = (
         db.query(models.Skill)
         .options(selectinload(models.Skill.resume_links), selectinload(models.Skill.job_links))
+        .filter(models.Skill.skill_id.in_(affected))
         .order_by(models.Skill.skill_id)
         .all()
     )

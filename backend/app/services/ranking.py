@@ -61,8 +61,13 @@ def _evaluate(job: models.Job, skills: List[str], resumes: List[models.Resume]) 
 
 
 def last_ranked_at(db: Session, job_id: int) -> Optional[datetime]:
-    """When ``POST /rank`` last saved a snapshot for this job, or ``None``."""
-    return db.query(func.max(models.Ranking.created_at)).filter(models.Ranking.job_id == job_id).scalar()
+    """When ``POST /rank`` last saved a snapshot for this job (timezone-aware UTC), or ``None``."""
+    value = db.query(func.max(models.Ranking.created_at)).filter(models.Ranking.job_id == job_id).scalar()
+    # SQLite drops the time zone of stored datetimes. Values are always written in UTC,
+    # and without the zone browsers would read the time as local time.
+    if value is not None and value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value
 
 
 def _iso(value: Optional[datetime]) -> Optional[str]:

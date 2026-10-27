@@ -1,6 +1,11 @@
 import { useCallback, useState } from "react";
 import api from "../api";
 
+// Matches proxy_read_timeout in frontend/nginx.conf. With the default 120 s client
+// timeout a large batch could still be processed after the browser gave up, and a
+// retry then stored the same resumes twice.
+const UPLOAD_TIMEOUT_MS = 300000;
+
 /**
  * Multipart upload with real progress reporting.
  *
@@ -16,6 +21,7 @@ export default function useUpload() {
     setPhase("uploading");
     try {
       const res = await api.post(endpoint, formData, {
+        timeout: UPLOAD_TIMEOUT_MS,
         onUploadProgress: (event) => {
           if (event.total) {
             const pct = Math.round((event.loaded / event.total) * 100);

@@ -1,5 +1,7 @@
 """Authorization matrix and behaviour of the recruiter evaluation endpoints."""
 
+from datetime import datetime, timedelta
+
 import pytest
 from sqlalchemy import event
 
@@ -76,6 +78,13 @@ def test_rank_saves_snapshot_and_backfills_embeddings(client, job, hr, fake_mode
     # Ranking twice replaces the snapshot instead of duplicating it
     client.post(f"/api/jobs/{job['job_id']}/rank", headers=hr["headers"])
     assert len(client.get(f"/api/jobs/{job['job_id']}/rankings", headers=hr["headers"]).json()) == 2
+
+
+def test_last_ranked_at_carries_a_time_zone(client, job, hr):
+    # Without a zone, browsers read the timestamp as local time and show the wrong hour.
+    client.post(f"/api/jobs/{job['job_id']}/rank", headers=hr["headers"])
+    value = client.get(f"/api/jobs/{job['job_id']}/summary", headers=hr["headers"]).json()["last_ranked_at"]
+    assert datetime.fromisoformat(value).utcoffset() == timedelta(0)
 
 
 def test_summary_uses_constant_number_of_queries(client, hr, candidate):

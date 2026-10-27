@@ -10,7 +10,6 @@ import {
   LineElement,
   Tooltip,
   Legend,
-  Title,
 } from "chart.js";
 import { colorAt } from "../theme";
 
@@ -22,8 +21,7 @@ ChartJS.register(
   PointElement,
   LineElement,
   Tooltip,
-  Legend,
-  Title
+  Legend
 );
 
 /** Draw a ✓ or ✕ on a small white circle; used as point markers in the coverage chart. */
@@ -218,7 +216,7 @@ export default function Charts({ jobSkillCounts = [], candidates = [] }) {
           </h4>
           <div style={{ height: 260 }}>
             {skillLabels.length ? (
-              <Bar data={barData} options={barOptions} aria-label="Bar chart: number of candidates having each required skill" />
+              <Bar role="img" data={barData} options={barOptions} aria-label="Bar chart: number of candidates having each required skill" />
             ) : (
               <div style={{ color: "#64748b", padding: 40, textAlign: "center" }}>No skill constraints defined.</div>
             )}
@@ -231,7 +229,7 @@ export default function Charts({ jobSkillCounts = [], candidates = [] }) {
               Applicant Quality Breakdown
             </h4>
             <div style={{ width: "100%", height: 145 }}>
-              <Doughnut data={donutData} options={donutOptions} aria-label={`Doughnut chart: ${qualityBuckets.high} strong fits (75% or more), ${qualityBuckets.medium} other shortlisted, ${qualityBuckets.low} under review`} />
+              <Doughnut role="img" data={donutData} options={donutOptions} aria-label={`Doughnut chart: ${qualityBuckets.high} strong fits (75% or more), ${qualityBuckets.medium} other shortlisted, ${qualityBuckets.low} under review`} />
             </div>
           </div>
 
@@ -240,7 +238,7 @@ export default function Charts({ jobSkillCounts = [], candidates = [] }) {
               Semantic vs. Lexical Match Matrix
             </h4>
             <div style={{ height: 185 }}>
-              <Scatter data={scatterData} options={scatterOptions} aria-label="Scatter chart of semantic fit versus skill fit for each candidate" />
+              <Scatter role="img" data={scatterData} options={scatterOptions} aria-label="Scatter chart of semantic fit versus skill fit for each candidate" />
             </div>
           </div>
         </div>
@@ -256,7 +254,7 @@ export default function Charts({ jobSkillCounts = [], candidates = [] }) {
 
         {skillLabels.length && candidates.length ? (
           <div style={{ height: 300 }}>
-            <Line data={lineData} options={lineOptions} aria-label="Chart of which required skills each candidate covers" />
+            <Line role="img" data={lineData} options={lineOptions} aria-label="Chart of which required skills each candidate covers" />
           </div>
         ) : (
           <div style={{ color: "#64748b", padding: 30, textAlign: "center" }}>

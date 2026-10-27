@@ -14,8 +14,8 @@ export function getSession() {
   }
 }
 
-export function saveSession({ access_token, role, name, user_id }) {
-  const session = { token: access_token, role, name, userId: user_id };
+export function saveSession({ access_token, role, name }) {
+  const session = { token: access_token, role, name };
   localStorage.setItem(KEY, JSON.stringify(session));
   return session;
 }

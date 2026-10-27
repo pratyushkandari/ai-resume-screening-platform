@@ -56,6 +56,39 @@ def test_candidate_email_fallback_only_for_own_upload(client, hr, candidate):
     assert by_hr["candidate_id"] != mine["candidate_id"]  # HR's own email is never attached to applicants
 
 
+def test_recruiter_can_only_upload_to_own_jobs(client, hr, other_hr):
+    job = create_job(client, hr["headers"])
+    assert upload_text(client, other_hr["headers"], job["job_id"], RESUME).status_code == 403
+    batch = client.post("/api/resumes/batch-upload", data={"job_id": str(job["job_id"])}, headers=other_hr["headers"],
+                        files=[("files", ("a.txt", io.BytesIO(RESUME.encode()), "text/plain"))])
+    assert batch.status_code == 403
+    assert upload_text(client, other_hr["headers"], 9999, RESUME).status_code == 404
+    assert upload_text(client, hr["headers"], job["job_id"], RESUME).status_code == 201
+
+
+def test_recruiter_upload_never_renames_an_existing_applicant(client, hr, other_hr, candidate, db):
+    own = upload_text(client, candidate["headers"], create_job(client, hr["headers"])["job_id"], RESUME).json()
+    # Another recruiter uploads a document carrying the same applicant's email to their own job.
+    other_job = create_job(client, other_hr["headers"], title="Data Engineer")
+    renamed = f"Mallory Rename\n{candidate['email']}\nPython and SQL engineer with many years of work."
+    by_other = upload_text(client, other_hr["headers"], other_job["job_id"], renamed).json()
+    assert by_other["candidate_id"] == own["candidate_id"]
+    assert db.get(models.Candidate, own["candidate_id"]).full_name == "Alice Kumar"
+
+
+def test_uploads_are_rate_limited_per_account(client, hr, candidate, monkeypatch):
+    from app.routers import resumes as resumes_router
+
+    job = create_job(client, hr["headers"])
+    monkeypatch.setattr(resumes_router, "settings", replace(settings, upload_rate_limit_per_minute=2))
+    codes = [upload_text(client, candidate["headers"], job["job_id"], RESUME).status_code for _ in range(3)]
+    assert codes == [201, 201, 429]
+    limited = upload_text(client, candidate["headers"], job["job_id"], RESUME)
+    assert limited.status_code == 429 and int(limited.headers["Retry-After"]) > 0
+    # The counter belongs to the account, not the shared test-client IP.
+    assert upload_text(client, hr["headers"], job["job_id"], RESUME).status_code == 201
+
+
 def test_candidate_cannot_attach_resumes_to_another_applicant(client, hr, candidate, db):
     job = create_job(client, hr["headers"])
     victim = upload_text(client, hr["headers"], job["job_id"], "Vera Victim\nvera@x.com\nPython engineer.").json()
@@ -98,6 +131,23 @@ def test_path_traversal_filename_is_neutralized(client, hr, candidate):
     r = upload_text(client, candidate["headers"], job["job_id"], RESUME, filename="../../etc/evil.txt")
     assert r.status_code == 201
     assert list(settings.upload_dir.glob("*_evil.txt"))
+
+
+@pytest.mark.parametrize(
+    "filename",
+    [
+        'cv: "final" <v2>?.txt',  # characters Windows does not allow in file names
+        "résumé-" * 30 + ".txt",  # 240 characters but 300+ bytes of UTF-8 (limit: 255 bytes)
+    ],
+)
+def test_unusual_filenames_are_stored_safely(client, hr, candidate, db, filename):
+    job = create_job(client, hr["headers"])
+    r = upload_text(client, candidate["headers"], job["job_id"], RESUME, filename=filename)
+    assert r.status_code == 201, r.text
+    stored = settings.upload_dir / db.get(models.Resume, r.json()["resume_id"]).upload_path
+    assert stored.is_file() and stored.suffix == ".txt"
+    assert len(stored.name.encode("utf-8")) <= 255
+    assert not set('<>:"|?*') & set(stored.name)
 
 
 def test_docx_sample_resume(client, hr, candidate):

@@ -16,8 +16,8 @@ Interactive docs: `http://127.0.0.1:8000/docs` (Swagger UI) when running locally
 | GET | `/api/jobs` | public | 200 list |
 | GET | `/api/jobs/mine` | recruiter | 200 list |
 | POST | `/api/jobs` | recruiter | 201 |
-| POST | `/api/resumes/upload` | any signed-in user | 201 |
-| POST | `/api/resumes/batch-upload` | any signed-in user | 200 |
+| POST | `/api/resumes/upload` | candidate (any job) or recruiter (own jobs), rate limited | 201 |
+| POST | `/api/resumes/batch-upload` | candidate (any job) or recruiter (own jobs), rate limited | 200 |
 | GET | `/api/resumes/{resume_id}/download` | recruiter who owns the job | 200 file |
 | GET | `/api/jobs/{job_id}/summary` | recruiter who owns the job | 200 |
 | POST | `/api/jobs/{job_id}/rank` | recruiter who owns the job | 200 |
@@ -27,7 +27,8 @@ Interactive docs: `http://127.0.0.1:8000/docs` (Swagger UI) when running locally
 Status codes used: 400 invalid input or rejected file · 401 missing/invalid/expired
 token · 403 wrong role or not your job · 404 unknown job/resume · 409 email already
 registered · 413 file too large · 422 unreadable document or invalid parameter ·
-429 too many login/registration attempts (`Retry-After` header) · 503 not ready.
+429 too many login/registration attempts per IP or uploads per account (`Retry-After`
+header) · 503 not ready.
 
 ---
 
@@ -55,12 +56,15 @@ Response `201`:
 Wrong email and wrong password both return `401 "Invalid email or password."`.
 
 ### `GET /api/me`
-`{"user_id": 14, "name": "Jane Recruiter", "email": "jane@acme.com", "role": "hr"}`
+`{"user_id": 14, "name": "Jane Recruiter", "email": "jane@acme.com", "role": "hr"}`.
+Useful to check whether a stored token is still valid (the web app relies on any
+`401` instead).
 
 ## Jobs
 
 ### `GET /api/jobs?page=1&limit=50`
-Open positions, newest first. `limit` 1–100.
+Open positions, newest first. `limit` 1–100. The web app requests the first page only,
+so candidates see the newest 50 positions.
 ```json
 [{ "job_id": 3, "title": "ML Engineer", "description": "...", "created_by": 14,
    "skills": ["python", "pytorch", "docker"] }]
@@ -90,17 +94,22 @@ Fields: `file` (`.pdf`, `.docx`, `.txt`; ≤ `MAX_UPLOAD_MB`, default 15 MB) and
   "parsed": { "name": "Alice Kumar", "email": "alice@example.com", "phone": "+91 98765 43210",
               "skills": ["docker", "fastapi", "python"] } }
 ```
-Rejections: 400 (type, signature mismatch, empty), 413 (too large), 422 (no readable text).
+Rejections: 400 (type, signature mismatch, empty), 403 (a recruiter uploading to a job
+they did not create), 404 (unknown job), 413 (too large), 422 (no readable text),
+429 (more than `UPLOAD_RATE_LIMIT_PER_MINUTE` upload requests from this account in the
+current minute, default 10). Characters that are invalid in file names become `_`.
 
 Who the resume belongs to:
 * uploaded by a **candidate** → that signed-in account (its email), whatever email the
   document contains, so nobody can attach resumes to another applicant's profile;
 * uploaded by a **recruiter** on someone's behalf → the email found in the resume
-  (a new applicant profile if none is found).
+  (a new applicant profile if none is found). A recruiter's upload only fills in a
+  missing name or phone; it never renames an existing applicant.
 
 ### `POST /api/resumes/batch-upload` (multipart)
-Fields: `files` (repeat, ≤ `MAX_BATCH_FILES`, default 25) and `job_id`. Always `200`
-with a result per file, in request order:
+Fields: `files` (repeat, ≤ `MAX_BATCH_FILES`, default 25) and `job_id`. Same access
+rules and rate limit as a single upload (a batch counts as one request). `200` with a
+result per file, in request order (400 if there are too many files):
 ```json
 { "job_id": 3, "total_files": 3, "successful": 2, "failed": 1,
   "results": [ { "filename": "a.pdf", "status": "processed", "resume_id": 43, "...": "..." },
