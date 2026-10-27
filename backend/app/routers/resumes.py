@@ -14,21 +14,29 @@ from .. import models
 from ..auth import get_current_user, get_owned_job, require_hr
 from ..config import settings
 from ..db import get_db
+from ..rate_limit import user_rate_limit
 from ..schemas import BatchUploadOut, ResumeUploadResult
 from ..services.ingestion import StoredUpload, UploadRejected, process_uploads, require_open_job, save_upload
 
 router = APIRouter(prefix="/api/resumes", tags=["Resumes"])
+# Every upload is stored on disk and parsed/embedded on the CPU, so each account is throttled.
+upload_limit = Depends(user_rate_limit("upload", lambda: settings.upload_rate_limit_per_minute))
 
 
-@router.post("/upload", response_model=ResumeUploadResult, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/upload", response_model=ResumeUploadResult, status_code=status.HTTP_201_CREATED, dependencies=[upload_limit]
+)
 def upload_resume(
     file: UploadFile = File(...),
     job_id: int = Form(...),
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> ResumeUploadResult:
-    """Upload one resume (.pdf, .docx, .txt) as an application to ``job_id``."""
-    job = require_open_job(db, job_id)
+    """Upload one resume (.pdf, .docx, .txt) as an application to ``job_id``.
+
+    Candidates may apply to any job; recruiters only to jobs they created.
+    """
+    job = require_open_job(db, job_id, current_user)
     try:
         stored = save_upload(file)
     except UploadRejected as exc:
@@ -39,7 +47,7 @@ def upload_resume(
     return result
 
 
-@router.post("/batch-upload", response_model=BatchUploadOut)
+@router.post("/batch-upload", response_model=BatchUploadOut, dependencies=[upload_limit])
 def batch_upload_resumes(
     files: List[UploadFile] = File(...),
     job_id: int = Form(...),
@@ -49,7 +57,7 @@ def batch_upload_resumes(
     """Upload several resumes; each file gets its own ``processed``/``failed`` result."""
     if len(files) > settings.max_batch_files:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=f"At most {settings.max_batch_files} files per batch.")
-    job = require_open_job(db, job_id)
+    job = require_open_job(db, job_id, current_user)
 
     stored: List[StoredUpload] = []
     order: List[object] = []  # StoredUpload or a failed ResumeUploadResult, in request order
