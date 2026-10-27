@@ -399,7 +399,7 @@ p {
 
 @media (max-width: 768px) {
   .modal-body-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr); /* plain 1fr cannot shrink below its content and overflowed on phones */
   }
   .page {
     padding: 16px !important;

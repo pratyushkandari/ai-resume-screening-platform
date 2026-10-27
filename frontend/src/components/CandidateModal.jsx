@@ -104,7 +104,7 @@ export default function CandidateModal({ candidate = null, jobSkills = [], onClo
         <div className="modal-body-grid">
           {/* Left Details Column */}
           <div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 16 }}>
               <div style={{ background: "#f8fafc", padding: 12, borderRadius: 10, border: "1px solid #e2e8f0", textAlign: "center" }}>
                 <div className="small">Overall Match Score</div>
                 <div style={{ fontSize: 22, fontWeight: 800, color: "#2563eb", marginTop: 4 }}>
