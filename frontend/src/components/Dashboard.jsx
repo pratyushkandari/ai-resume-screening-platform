@@ -14,16 +14,20 @@ import { useNavigate, useLocation } from "react-router-dom";
  * returns scores, skills and chart data for the selected job; "Evaluate Candidates"
  * calls POST /api/jobs/{id}/rank (fills missing embeddings, saves a snapshot) and
  * then reloads the summary. A job id passed in router state (after posting a job)
- * is selected first.
+ * is selected first. Comparison selections are keyed by `resume_id`, the one id
+ * every summary entry is guaranteed to have.
  */
 export default function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
 
   const [jobs, setJobs] = useState([]);
+  const [jobsStatus, setJobsStatus] = useState("loading"); // loading | error | ready
+  const [jobsAttempt, setJobsAttempt] = useState(0); // incremented to retry loading the jobs
   const [jobId, setJobId] = useState(null);
   const [summary, setSummary] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [summaryStatus, setSummaryStatus] = useState("idle"); // idle | loading | error | ready
+  const [ranking, setRanking] = useState(false);
   const [compareIds, setCompareIds] = useState([]);
   const [openCandidate, setOpenCandidate] = useState(null);
   const [showCompare, setShowCompare] = useState(false);
@@ -40,19 +44,22 @@ export default function Dashboard() {
     const requestId = ++latestRequest.current;
     if (!id) {
       setSummary(null);
+      setSummaryStatus("idle");
       return;
     }
-    setLoading(true);
+    setSummaryStatus("loading");
     try {
       const res = await api.get(`/api/jobs/${Number(id)}/summary`);
-      if (requestId === latestRequest.current) setSummary(res.data || null);
+      if (requestId === latestRequest.current) {
+        setSummary(res.data || null);
+        setSummaryStatus("ready");
+      }
     } catch (err) {
       if (requestId === latestRequest.current) {
         toast.error(getErrorMessage(err, "Failed to load candidate analytics."));
         setSummary(null);
+        setSummaryStatus("error");
       }
-    } finally {
-      if (requestId === latestRequest.current) setLoading(false);
     }
   }, []);
 
@@ -64,6 +71,7 @@ export default function Dashboard() {
         if (cancelled) return;
         const jobList = res.data || [];
         setJobs(jobList);
+        setJobsStatus("ready");
         const requested = location.state?.selectedJobId;
         const initial = jobList.some((j) => j.job_id === requested) ? requested : jobList[0]?.job_id;
         if (initial) {
@@ -71,13 +79,21 @@ export default function Dashboard() {
           fetchSummary(initial);
         }
       } catch (err) {
-        if (!cancelled) toast.error(getErrorMessage(err, "Failed to load your job requisitions."));
+        if (!cancelled) {
+          toast.error(getErrorMessage(err, "Failed to load your job requisitions."));
+          setJobsStatus("error");
+        }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [fetchSummary, location.state]);
+  }, [fetchSummary, location.state, jobsAttempt]);
+
+  function retryJobs() {
+    setJobsStatus("loading");
+    setJobsAttempt((n) => n + 1);
+  }
 
   async function generateRankings() {
     if (!jobId) {
@@ -85,7 +101,9 @@ export default function Dashboard() {
       return;
     }
     const rankedJob = jobId;
-    setLoading(true);
+    // Stays set even if the recruiter switches jobs meanwhile, so the same
+    // evaluation cannot be started twice.
+    setRanking(true);
     try {
       const res = await api.post(`/api/jobs/${Number(rankedJob)}/rank`);
       toast.success(`Re-evaluated ${res.data?.ranked || 0} resumes and saved the rankings.`);
@@ -94,7 +112,7 @@ export default function Dashboard() {
     } catch (err) {
       toast.error(getErrorMessage(err, "Candidate evaluation failed."));
     } finally {
-      setLoading(false);
+      setRanking(false);
     }
   }
 
@@ -103,17 +121,12 @@ export default function Dashboard() {
     const numeric = val ? Number(val) : null;
     setJobId(numeric);
     setCompareIds([]);
+    setSummary(null); // never show the previous job's candidates under the new selection
     fetchSummary(numeric);
   }
 
-  function toggleCompare(candidate_id) {
-    setCompareIds((prev) => {
-      if (prev.includes(candidate_id)) {
-        return prev.filter((x) => x !== candidate_id);
-      } else {
-        return [...prev, candidate_id];
-      }
-    });
+  function toggleCompare(resumeId) {
+    setCompareIds((prev) => (prev.includes(resumeId) ? prev.filter((x) => x !== resumeId) : [...prev, resumeId]));
   }
 
   // Calculate high-level summary metrics
@@ -122,6 +135,37 @@ export default function Dashboard() {
   const avgScore = totalApplicants > 0
     ? Math.round(((summary.candidates.reduce((acc, c) => acc + (c.score || 0), 0) / totalApplicants) * 100))
     : 0;
+
+  // What to show instead of the analytics while there is no summary to display.
+  let placeholder = null;
+  if (jobsStatus === "loading") {
+    placeholder = { title: "Loading your positions…", busy: true };
+  } else if (jobsStatus === "error") {
+    placeholder = {
+      title: "Couldn't load your positions",
+      text: "Check that the server is reachable, then try again.",
+      action: { label: "Try Again", onClick: retryJobs },
+    };
+  } else if (jobs.length === 0) {
+    placeholder = {
+      title: "No Positions Yet",
+      text: "Post your first position to start receiving applications and ranking candidates.",
+      action: { label: "Create Your First Position", onClick: () => navigate("/upload-job") },
+    };
+  } else if (!jobId) {
+    placeholder = {
+      title: "No Position Selected",
+      text: "Select an active job requisition from the dropdown above to review candidate rankings, skill gap metrics, and semantic match distributions.",
+    };
+  } else if (summaryStatus === "error") {
+    placeholder = {
+      title: "Couldn't load candidate analytics",
+      text: "Check that the server is reachable, then try again.",
+      action: { label: "Try Again", onClick: () => fetchSummary(jobId) },
+    };
+  } else if (!summary) {
+    placeholder = { title: "Loading candidate analytics…", busy: true };
+  }
 
   return (
     <div className="page" style={{ padding: "28px 32px", maxWidth: 1320, margin: "0 auto" }}>
@@ -187,14 +231,14 @@ export default function Dashboard() {
 
           <button
             onClick={generateRankings}
-            disabled={!jobId || loading}
+            disabled={!jobId || ranking}
             className="btn btn-primary"
             style={{ padding: "9px 16px", fontSize: 13 }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
             </svg>
-            {loading ? "Evaluating..." : "Evaluate Candidates"}
+            {ranking ? "Evaluating..." : "Evaluate Candidates"}
           </button>
 
           <button
@@ -238,9 +282,11 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {!summary ? (
-        /* Clean Empty State */
+      {placeholder ? (
+        /* Loading, error and empty states */
         <div
+          role="status"
+          aria-busy={placeholder.busy || undefined}
           style={{
             marginTop: 20,
             borderRadius: 12,
@@ -269,13 +315,15 @@ export default function Dashboard() {
               <path d="m21 21-4.3-4.3"/>
             </svg>
           </div>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: "#1e293b", marginBottom: 6 }}>No Position Selected</h2>
-          <p style={{ color: "#64748b", fontSize: 14, maxWidth: 460, margin: "0 auto 18px auto" }}>
-            Select an active job requisition from the dropdown above to review candidate rankings, skill gap metrics, and semantic match distributions.
-          </p>
-          {jobs.length === 0 && (
-            <button onClick={() => navigate("/upload-job")} className="btn btn-primary">
-              Create Your First Position
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: "#1e293b", marginBottom: 6 }}>{placeholder.title}</h2>
+          {placeholder.text && (
+            <p style={{ color: "#64748b", fontSize: 14, maxWidth: 460, margin: "0 auto 18px auto" }}>
+              {placeholder.text}
+            </p>
+          )}
+          {placeholder.action && (
+            <button onClick={placeholder.action.onClick} className="btn btn-primary">
+              {placeholder.action.label}
             </button>
           )}
         </div>
@@ -402,11 +450,11 @@ export default function Dashboard() {
               <div className="card-grid">
                 {(summary.candidates || []).map((c) => (
                   <CandidateCard
-                    key={`${c.resume_id}-${c.candidate_id}`}
+                    key={c.resume_id}
                     candidate={c}
-                    isSelected={compareIds.includes(c.candidate_id)}
+                    isSelected={compareIds.includes(c.resume_id)}
                     onViewRadar={(cand) => setOpenCandidate(cand)}
-                    onToggleCompare={(candId) => toggleCompare(candId)}
+                    onToggleCompare={toggleCompare}
                   />
                 ))}
               </div>
@@ -427,7 +475,7 @@ export default function Dashboard() {
       {/* Candidate Comparison Modal */}
       {showCompare && (
         <CompareModal
-          candidates={(summary?.candidates || []).filter((c) => compareIds.includes(c.candidate_id))}
+          candidates={(summary?.candidates || []).filter((c) => compareIds.includes(c.resume_id))}
           jobSkills={summary?.job_skills || []}
           jobId={jobId}
           onClose={() => {
@@ -443,16 +491,22 @@ export default function Dashboard() {
           style={{
             position: "fixed",
             bottom: 24,
-            left: "50%",
-            transform: "translateX(-50%)",
+            // Centred with auto margins between 16px gutters, so on phones the bar can
+            // use the full width (centring with left: 50% would cap it at half the screen).
+            left: 16,
+            right: 16,
+            margin: "0 auto",
+            width: "fit-content",
             backgroundColor: "#0f172a",
             color: "#ffffff",
             padding: "12px 20px",
             borderRadius: 12,
             boxShadow: "0 10px 25px -5px rgba(0,0,0,0.4)",
             display: "flex",
+            flexWrap: "wrap",
+            justifyContent: "center",
             alignItems: "center",
-            gap: 16,
+            gap: "10px 16px",
             zIndex: 100,
             border: "1px solid #334155"
           }}
@@ -475,8 +529,8 @@ export default function Dashboard() {
             </button>
             <button
               onClick={() => setCompareIds([])}
-              className="btn btn-ghost"
-              style={{ fontSize: 12, padding: "6px 10px", color: "#cbd5e1" }}
+              className="btn btn-ghost-dark"
+              style={{ fontSize: 12, padding: "6px 10px" }}
             >
               Clear
             </button>

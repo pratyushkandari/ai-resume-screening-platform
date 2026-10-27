@@ -5,12 +5,14 @@ import UploadResume from "./UploadResume";
 
 /**
  * Candidate home page: every open job as a card, with the resume form below.
- * "Apply for Position" preselects that job in the form and scrolls to it.
- * Jobs are fetched once here and passed down, so the form does not refetch them.
+ * "Apply for Position" preselects that job in the form, scrolls to it and moves
+ * keyboard focus there. Jobs are fetched once here and passed down, so the form
+ * does not refetch them. The API returns the newest 50 open positions.
  */
 export default function CandidatePage() {
   const [jobs, setJobs] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // the first fetch starts on mount
+  const [loadFailed, setLoadFailed] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState("");
   const uploadSectionRef = useRef(null);
 
@@ -21,6 +23,7 @@ export default function CandidatePage() {
   async function loadJobs() {
     try {
       setLoading(true);
+      setLoadFailed(false);
       const res = await api.get("/api/jobs");
       setJobs(res.data || []);
       if (res.data && res.data.length > 0) {
@@ -28,6 +31,7 @@ export default function CandidatePage() {
       }
     } catch (err) {
       toast.error(getErrorMessage(err, "Failed to load open positions."));
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -37,6 +41,8 @@ export default function CandidatePage() {
     setSelectedJobId(String(job_id));
     if (uploadSectionRef.current) {
       uploadSectionRef.current.scrollIntoView({ behavior: "smooth" });
+      // Keyboard and screen-reader users continue in the form, not at the job card.
+      uploadSectionRef.current.querySelector("select")?.focus({ preventScroll: true });
     }
   };
 
@@ -53,8 +59,17 @@ export default function CandidatePage() {
       </div>
 
       {loading ? (
-        <div style={{ padding: 40, textAlign: "center", color: "#64748b" }}>
+        <div role="status" style={{ padding: 40, textAlign: "center", color: "#64748b" }}>
           Loading active positions...
+        </div>
+      ) : loadFailed ? (
+        <div role="status" className="card" style={{ textAlign: "center", padding: "40px 20px" }}>
+          <p style={{ color: "#64748b", fontSize: 14, marginBottom: 14 }}>
+            Open positions could not be loaded. Check that the server is reachable, then try again.
+          </p>
+          <button type="button" onClick={loadJobs} className="btn btn-primary">
+            Try Again
+          </button>
         </div>
       ) : jobs.length === 0 ? (
         <div className="card" style={{ textAlign: "center", padding: "40px 20px" }}>
