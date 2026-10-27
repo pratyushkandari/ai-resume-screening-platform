@@ -1,6 +1,4 @@
-/* =============================================================================
-   TalentFlow ATS - Enterprise Design System & Utility Styles
-   ============================================================================= */
+/* Global styles for the TalentFlow UI: design tokens, layout, buttons, form controls and chips. */
 
 :root {
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;

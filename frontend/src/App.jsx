@@ -51,7 +51,7 @@ export default function App() {
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", backgroundColor: "#f8fafc" }}>
-      {/* Modern Enterprise Header */}
+      {/* Header: brand, role-based navigation, signed-in user */}
       <header className="app-header">
         <div
           onClick={() => navigate("/")}

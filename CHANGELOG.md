@@ -1,49 +1,57 @@
 # Changelog
 
-## Unreleased — audit fixes
+All notable changes to this project are listed here.
+
+## Unreleased
 
 ### Security
-- Recruiters can upload resumes only to jobs they created (403 otherwise), and their
-  uploads no longer rename an existing applicant profile shared with other jobs.
-- Uploads are rate limited per account: `UPLOAD_RATE_LIMIT_PER_MINUTE` (default 10;
+- Recruiters can only upload resumes to jobs they created (403 otherwise). Their
+  uploads no longer rename an applicant profile that other jobs share.
+- Uploads are rate limited per account with `UPLOAD_RATE_LIMIT_PER_MINUTE` (default 10,
   a batch counts once).
 - `.env.example` no longer sets `APP_ENV=development` and `REQUIRE_EMBEDDING_MODEL=false`.
-  Copied to `./.env` as the deployment guide says, they switched the Docker Compose
-  production stack to development mode.
+  When copied to `./.env`, as the deployment guide says to, those lines put the Docker
+  Compose stack into development mode.
 
-### Correctness
-- File names with characters invalid on Windows returned 500, and long names lost
-  their extension (and were rejected) or exceeded the 255-byte limit; names are now
-  sanitized and capped in bytes.
-- `last_ranked_at` carries a UTC offset on SQLite, so "Rankings saved" shows the right time.
-- Pasting "Python, Docker, SQL" into the job's skill field created one unmatched skill;
-  it now creates three tags.
-- Uploads wait as long as Nginx (300 s) instead of timing out after 120 s while the
-  server kept processing, which led users to upload the same resumes twice.
-- Dashboard: real loading, error (with retry) and empty states; "Evaluating..." only
-  during an evaluation; an evaluation cannot be started twice; compare selection is
-  keyed by resume. Candidate page: loading and error states with retry.
-- The comparison dialog's stylesheet no longer overrides the skill chips of the whole dashboard.
-- The candidate-fit dialog no longer scrolls sideways on phones (its layout columns could
-  not shrink below their content).
+### Fixed
+- File names with characters Windows does not allow caused a 500. Long names lost their
+  extension and were rejected, or went over the 255-byte limit. Names are now sanitized
+  and capped in bytes.
+- `last_ranked_at` includes the UTC offset on SQLite, so "Rankings saved" shows the right time.
+- Pasting "Python, Docker, SQL" into the skill field created a single skill that never
+  matched. It now creates three tags.
+- The browser gave up on uploads after 120 s while Nginx and the API keep working for up
+  to 300 s, so users uploaded the same resumes twice. Uploads now wait 300 s.
+- Dashboard: separate loading, error and empty states with a retry button; "Evaluating..."
+  only shows during an evaluation, which can no longer be started twice; comparison is
+  keyed by resume. The candidate job list has loading and error states too.
+- The comparison dialog's stylesheet no longer restyles every skill chip on the dashboard.
+- The "View Fit" dialog no longer scrolls sideways on phones.
 
 ### Accessibility
-- Visible keyboard focus on the sign-in inputs; contrast fixes (comparison Close
-  button, "Skill Fit" value, comparison bar "Clear" hover); charts expose their labels
-  (`role="img"`); labelled role toggle; "Apply for Position" moves focus to the form;
-  Space on the upload drop zone no longer scrolls the page.
+- Visible keyboard focus on the sign-in inputs.
+- Better contrast for the comparison Close button, the "Skill Fit" value and the
+  comparison bar's Clear button.
+- Charts expose their labels to screen readers, the role toggle is labelled, "Apply for
+  Position" moves focus to the form, and Space on the upload drop zone no longer scrolls.
 
-### Performance and maintenance
-- Start-up skill de-duplication loads skill links only when something needs merging.
-- Removed the unused `frontend/vercel.json`, the Chart.js `Title` plugin registration
-  and an unused session field. README now documents the architecture, API and every setting.
+### Performance
+- `score_candidates` is about 1.6x faster (10,000 applicants: 240 ms to 146 ms on one
+  core). Skill names are normalized through a cache, and embeddings are copied into the
+  NumPy matrix with `np.fromiter`. Results are unchanged.
+- Start-up skill de-duplication only loads skill links when something needs merging.
+
+### Removed
+- `frontend/vercel.json` (no Vercel deployment exists), the unused Chart.js `Title`
+  plugin registration and an unused session field.
 
 ### Upgrade notes
-- If your `./.env` was copied from an older `.env.example`, delete the
-  `APP_ENV=development` and `REQUIRE_EMBEDDING_MODEL=false` lines (or set production
-  values) and restart the stack.
+- If `./.env` was copied from an older `.env.example`, delete its
+  `APP_ENV=development` and `REQUIRE_EMBEDDING_MODEL=false` lines and restart the stack.
 
-## 3.1.0 — second review: security, robustness and clean-up
+## 3.1.0 (2026-10-24)
+
+Second round of security, robustness and clean-up work.
 
 ### Security
 - Login rate limit could be bypassed by sending a fake `X-Forwarded-For` header
@@ -101,7 +109,9 @@
   and JWT secret in Git history, so rotate both, and copy `backend/uploads` into the
   new `uploads` volume.
 
-## 3.0.0 — security, correctness and maintainability overhaul
+## 3.0.0 (2026-10-22)
+
+Security, correctness and maintainability overhaul.
 
 ### Security
 - Every recruiter endpoint (`summary`, `rank`, `rankings`, resume `download`) now
@@ -144,7 +154,7 @@
 - Shared frontend helpers (`session.js`, `theme.js`, `Modal`, `useUpload` with real upload progress).
 - ESLint for the frontend, ruff in CI, CI runs tests on SQLite and PostgreSQL.
 - Idempotent `sql/seed.sql`, multi-stage Docker image with the model baked in,
-  Nginx upload limits, Kubernetes shared upload volume, honest documentation.
+  Nginx upload limits, Kubernetes shared upload volume, documentation that matches the code.
 - Test suite rewritten: 129 tests including an authorization matrix and a
   query-count regression test.
 

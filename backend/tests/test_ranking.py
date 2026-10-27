@@ -1,9 +1,12 @@
 """Unit tests for the scoring model in ``ml_utils``."""
 
+import math
+import random
+
 import numpy as np
 import pytest
 
-from app.ml_utils import NEUTRAL_SEMANTIC, ResumeFeatures, score_candidates, semantic_scores
+from app.ml_utils import NEUTRAL_SEMANTIC, ResumeFeatures, normalize_skill, score_candidates, semantic_scores
 
 
 def score_candidate(job_embedding, resume_embedding, job_skills, resume_skills):
@@ -64,3 +67,51 @@ def test_batch_scoring_matches_one_by_one_and_order():
 def test_duplicate_required_skills_counted_once():
     r = score_candidate(None, None, ["Python", "python ", "SQL"], ["python"])
     assert r["skill_score"] == 0.5 and r["coverage_vector"] == [1, 0]
+
+
+def _reference_score(job_embedding, job_skills, features):
+    """Plain one-candidate implementation of the documented formula, used as an oracle."""
+    required = list(dict.fromkeys(normalize_skill(s) for s in job_skills if s and s.strip()))
+    have = {normalize_skill(s) for s in features.skills if s and s.strip()}
+    semantic = NEUTRAL_SEMANTIC
+    vec = features.embedding
+    if job_embedding and vec is not None and len(vec) == len(job_embedding) and any(job_embedding):
+        dot = sum(a * b for a, b in zip(job_embedding, vec, strict=True))
+        norm_job = math.sqrt(sum(a * a for a in job_embedding))
+        norm_vec = math.sqrt(sum(b * b for b in vec)) or 1.0
+        semantic = min(1.0, max(0.0, (dot / (norm_job * norm_vec) + 1) / 2))
+    matched = [s for s in required if s in have]
+    skill_score = len(matched) / len(required) if required else NEUTRAL_SEMANTIC
+    final = min(1.0, 0.7 * skill_score + 0.3 * semantic + (0.05 if skill_score >= 0.7 else 0.0))
+    return {
+        "semantic": semantic,
+        "skill_score": round(skill_score, 4),
+        "final_score": final,
+        "status": "accepted" if final >= 0.6 else "rejected",
+        "matched_skills": sorted(matched),
+        "missing_skills": [s for s in required if s not in have],
+        "coverage_vector": [1 if s in have else 0 for s in required],
+        "coverage_percent": round(100 * len(matched) / len(required)) if required else 0,
+    }
+
+
+@pytest.mark.parametrize("job_skills", [["Python", "docker", "SQL", "python ", "Machine-Learning", "c++"], []])
+def test_vectorized_scoring_matches_reference_formula(job_skills):
+    # Guards the optimized implementation: messy skill spellings, duplicates, blank
+    # names, and missing, zero or wrong-length embeddings must score exactly as the
+    # plain formula does.
+    rng = np.random.default_rng(42)
+    pick = random.Random(42)
+    pool = ["python", "PYTHON", "Docker", "sql", "machine learning", "machine_learning", "C++", "java", "", "  ", "rust"]
+    job = rng.standard_normal(384).tolist()
+    resumes = []
+    for i in range(400):
+        embedding = [None, [0.0] * 384, [1.0, 2.0]][i % 3] if i % 10 == 0 else rng.standard_normal(384).tolist()
+        resumes.append(ResumeFeatures(embedding, pick.sample(pool, k=pick.randint(0, 7))))
+    for got, features in zip(score_candidates(job, job_skills, resumes), resumes, strict=True):
+        want = _reference_score(job, job_skills, features)
+        assert got["semantic"] == pytest.approx(want["semantic"], abs=1e-4)
+        assert got["final_score"] == pytest.approx(want["final_score"], abs=1e-4)
+        assert {k: got[k] for k in want if k not in ("semantic", "final_score")} == {
+            k: v for k, v in want.items() if k not in ("semantic", "final_score")
+        }

@@ -1,6 +1,4 @@
-# =============================================================================
-#  Enterprise Git Ignore Configuration
-# =============================================================================
+# Files that never belong in the repository: environments, build output, local data and secrets.
 
 # --- Python & Virtual Environments ---
 venv/

@@ -24,11 +24,19 @@ Interactive docs: `http://127.0.0.1:8000/docs` (Swagger UI) when running locally
 | GET | `/api/jobs/{job_id}/rankings` | recruiter who owns the job | 200 list |
 | GET | `/healthz`, `/readyz`, `/metrics` | public (operations) | 200 / 503 |
 
-Status codes used: 400 invalid input or rejected file · 401 missing/invalid/expired
-token · 403 wrong role or not your job · 404 unknown job/resume · 409 email already
-registered · 413 file too large · 422 unreadable document or invalid parameter ·
-429 too many login/registration attempts per IP or uploads per account (`Retry-After`
-header) · 503 not ready.
+Status codes:
+
+| Code | Meaning |
+|---|---|
+| 400 | Invalid input or a rejected file |
+| 401 | Missing, invalid or expired token |
+| 403 | Wrong role, or not your job |
+| 404 | Unknown job or resume |
+| 409 | Email already registered |
+| 413 | File too large |
+| 422 | Unreadable document or invalid parameter |
+| 429 | Too many login or registration attempts from this IP, or too many uploads from this account (see `Retry-After`) |
+| 503 | Not ready (`/readyz`) |
 
 ---
 
