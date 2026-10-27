@@ -24,6 +24,8 @@
   during an evaluation; an evaluation cannot be started twice; compare selection is
   keyed by resume. Candidate page: loading and error states with retry.
 - The comparison dialog's stylesheet no longer overrides the skill chips of the whole dashboard.
+- The candidate-fit dialog no longer scrolls sideways on phones (its layout columns could
+  not shrink below their content).
 
 ### Accessibility
 - Visible keyboard focus on the sign-in inputs; contrast fixes (comparison Close
