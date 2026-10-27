@@ -65,7 +65,11 @@ export default function UploadResume({ preselectedJobId, jobs: jobsProp }) {
 
   function handleDrop(e) {
     e.preventDefault();
-    if (e.dataTransfer.files) validateAndSetFiles(Array.from(e.dataTransfer.files));
+    if (!busy && e.dataTransfer.files) validateAndSetFiles(Array.from(e.dataTransfer.files));
+  }
+
+  function openFilePicker() {
+    if (!busy) fileInputRef.current?.click();
   }
 
   async function submit() {
@@ -129,22 +133,29 @@ export default function UploadResume({ preselectedJobId, jobs: jobsProp }) {
           </select>
         </div>
 
-        {/* Upload Zone */}
+        {/* Upload Zone (inactive while a submission is running: files picked then would be cleared on completion) */}
         <div
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && fileInputRef.current?.click()}
+          onClick={openFilePicker}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault(); // Space would otherwise also scroll the page
+              openFilePicker();
+            }
+          }}
           role="button"
           tabIndex={0}
           aria-label="Choose resume files"
+          aria-disabled={busy || undefined}
           style={{
             border: "2px dashed #cbd5e1",
             borderRadius: 12,
             padding: "36px 20px",
             textAlign: "center",
             backgroundColor: "#f8fafc",
-            cursor: "pointer",
+            cursor: busy ? "not-allowed" : "pointer",
+            opacity: busy ? 0.6 : 1,
             transition: "all 0.15s ease"
           }}
           onMouseOver={(e) => (e.currentTarget.style.borderColor = "#3b82f6")}
