@@ -53,29 +53,37 @@ longer sign in; reset their password with the command above.
 
 ## Common incidents
 
-**Uploads fail with 413 from Nginx** — `client_max_body_size` in `frontend/nginx.conf`
-must be at least `MAX_BATCH_FILES × MAX_UPLOAD_MB`.
+### Uploads fail with 413 from Nginx
 
-**Users are signed out after a deploy** — `JWT_SECRET_KEY` changed (or was unset
-in development, where a random key is generated per process).
+`client_max_body_size` in `frontend/nginx.conf` must be at least
+`MAX_BATCH_FILES × MAX_UPLOAD_MB`.
 
-**429 Too Many Requests on login** — the per-IP limit
-(`LOGIN_RATE_LIMIT_PER_MINUTE`) was hit; it resets within a minute. If *all* users
-are limited together, the API sees the proxy's IP instead of the client's: Uvicorn
-must run with `--proxy-headers` and the proxy's address must be inside
-`FORWARDED_ALLOW_IPS` (private networks by default).
+### Users are signed out after a deploy
 
-**429 Too Many Requests on upload** — one account sent more than
-`UPLOAD_RATE_LIMIT_PER_MINUTE` upload requests (default 10; a batch counts once)
-within the current minute. Raise the value in `.env` if recruiters legitimately
-upload more, or set `0` to disable.
+`JWT_SECRET_KEY` changed. In development it is random per process when unset, so every
+restart signs everyone out.
 
-**A user reports an error with a request ID** — search the API logs for that ID;
-the full traceback is logged next to it.
+### 429 Too Many Requests on login
 
-**Downloads return 404 "file not found on server storage"** — the database row
-exists but the file is gone: the upload volume was not persisted or not shared
-between replicas.
+The per-IP limit (`LOGIN_RATE_LIMIT_PER_MINUTE`) was reached; it resets within a minute.
+If all users are limited at once, the API is seeing the proxy's IP instead of the
+client's. Uvicorn has to run with `--proxy-headers`, and the proxy's address has to be
+inside `FORWARDED_ALLOW_IPS` (private networks by default).
+
+### 429 Too Many Requests on upload
+
+One account sent more than `UPLOAD_RATE_LIMIT_PER_MINUTE` upload requests (default 10,
+a batch counts once) in the current minute. Raise the value in `.env` if recruiters
+legitimately upload more, or set it to `0` to turn the limit off.
+
+### A user reports an error with a request ID
+
+Search the API logs for that ID. The full traceback is logged next to it.
+
+### Downloads return 404 "file not found on server storage"
+
+The database row exists but the file is gone. The upload volume was either not
+persisted or not shared between replicas.
 
 ## Backups
 

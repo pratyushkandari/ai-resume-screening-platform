@@ -10,8 +10,8 @@ Nginx (Docker) or Vite dev proxy  ── serves the SPA, forwards /api to the AP
    ▼
 FastAPI app (backend/app)
    ├─ middleware: request ID + latency + metrics, security headers, CORS allow-list
-   ├─ routers:   auth · jobs · resumes · rankings · ops
-   ├─ services:  ingestion · ranking · skills
+   ├─ routers:   auth, jobs, resumes, rankings, ops
+   ├─ services:  ingestion, ranking, skills
    ├─ ml_utils:  extraction, parsing, embeddings (MiniLM, in-process), scoring
    ├─ PostgreSQL via SQLAlchemy (SQLite in dev/tests)
    ├─ Redis (optional): summary cache + rate-limit counters
