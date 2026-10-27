@@ -91,7 +91,7 @@ export default function CompareModal({ candidates = [], jobSkills = [], jobId = 
 
             <div className="cm-summary">
               {candidates.map((c) => (
-                <div key={c.candidate_id} className="cm-card">
+                <div key={c.resume_id} className="cm-card">
                   <div style={{ fontWeight: 700, color: "#0f172a" }}>
                     {c.candidate_name || `Applicant #${c.candidate_id}`}
                   </div>
@@ -168,12 +168,12 @@ export default function CompareModal({ candidates = [], jobSkills = [], jobId = 
                   };
 
                   return (
-                    <div key={c.candidate_id} className="cm-radar-card">
+                    <div key={c.resume_id} className="cm-radar-card">
                       <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6, color: "#0f172a" }}>
                         {c.candidate_name}
                       </div>
                       <div style={{ height: 180 }}>
-                        <Radar data={radarData} options={radarOptions} aria-label={`Skill coverage radar for ${c.candidate_name}`} />
+                        <Radar role="img" data={radarData} options={radarOptions} aria-label={`Skill coverage radar for ${c.candidate_name}`} />
                       </div>
                       <div style={{ marginTop: 8, fontSize: 12, color: "#64748b" }}>
                         Coverage: {c.coverage_percent}% • Matched: {(c.matched_skills || []).length} / {jobSkills.length}
@@ -188,7 +188,7 @@ export default function CompareModal({ candidates = [], jobSkills = [], jobId = 
                   Skill Overlap vs. Gaps (Stacked)
                 </h4>
                 <div style={{ height: 320 }}>
-                  <Bar data={barData} options={barOptions} aria-label="Stacked bar chart of matched skills and skill gaps per candidate" />
+                  <Bar role="img" data={barData} options={barOptions} aria-label="Stacked bar chart of matched skills and skill gaps per candidate" />
                 </div>
               </div>
             </div>
