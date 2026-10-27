@@ -8,6 +8,7 @@ rest of the batch; embeddings for the whole batch are computed in one model call
 from __future__ import annotations
 
 import logging
+import re
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,7 +19,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .. import models
-from ..auth import ROLE_CANDIDATE
+from ..auth import ROLE_CANDIDATE, get_owned_job
 from ..cache import CacheService, job_summary_key
 from ..config import settings
 from ..ml_utils import DocumentError, check_file_signature, embed_batch, extract_skills, extract_text, parse_contacts
@@ -28,6 +29,11 @@ from .skills import get_or_create_skills, load_skill_index
 logger = logging.getLogger("ingestion")
 CHUNK_SIZE = 64 * 1024
 MIN_TEXT_CHARS = 30
+# Characters no common file system accepts in a name (control characters, and the
+# ones Windows reserves); they become "_" so a stored name is valid on every OS.
+_UNSAFE_NAME_CHARS = re.compile(r'[\x00-\x1f\x7f<>:"/\\|?*]')
+# File systems cap a name at 255 bytes; this leaves room for the random prefix.
+MAX_NAME_BYTES = 150
 
 
 class UploadRejected(Exception):
@@ -53,12 +59,20 @@ class StoredUpload:
 
 
 def _safe_original_name(filename: Optional[str]) -> str:
-    r"""Base name of a client-supplied file name (no folders, at most 150 characters).
+    r"""Base name of a client-supplied file name, safe to create on any OS.
 
     Backslashes count as separators too, so ``..\\..\\x.pdf`` becomes ``x.pdf``.
+    Characters invalid in file names become ``_``, and long names are shortened to
+    ``MAX_NAME_BYTES`` of UTF-8 (counted in bytes, not characters, because a
+    150-character name in a non-Latin script can exceed the 255-byte limit).
     """
-    name = Path((filename or "").replace("\\", "/")).name.strip()
-    return name[:150] or "resume"
+    name = Path((filename or "").replace("\\", "/")).name
+    name = _UNSAFE_NAME_CHARS.sub("_", name).strip()
+    if len(name.encode("utf-8")) > MAX_NAME_BYTES:
+        stem, suffix = Path(name).stem, Path(name).suffix
+        room = max(MAX_NAME_BYTES - len(suffix.encode("utf-8")), 0)
+        name = stem.encode("utf-8")[:room].decode("utf-8", "ignore").strip() + suffix
+    return name or "resume"
 
 
 def save_upload(upload: UploadFile) -> StoredUpload:
@@ -96,8 +110,15 @@ def save_upload(upload: UploadFile) -> StoredUpload:
     return stored
 
 
-def require_open_job(db: Session, job_id: int) -> models.Job:
-    """Return the job or raise 404 (any signed-in user may apply to any job)."""
+def require_open_job(db: Session, job_id: int, uploader: models.User) -> models.Job:
+    """Return the job an upload targets, or raise 404 (unknown job) / 403.
+
+    Candidates may apply to any job. Recruiters upload on applicants' behalf only
+    to jobs they created, so one recruiter cannot add applicants to another
+    recruiter's pipeline.
+    """
+    if uploader.role != ROLE_CANDIDATE:
+        return get_owned_job(job_id, uploader, db)
     job = db.get(models.Job, job_id)
     if job is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Job opening not found.")
@@ -111,7 +132,9 @@ def _upsert_candidate(db: Session, contacts: dict, uploader: models.User) -> mod
     never by an email typed inside the document; otherwise anyone could attach
     resumes to (or rename) another applicant's profile. A recruiter uploading on an
     applicant's behalf is trusted to provide that applicant's resume, so the email
-    found in the document identifies the applicant.
+    found in the document identifies the applicant. Profiles are shared by every
+    job the applicant applied to, so a recruiter's upload only fills in a missing
+    name or phone and never renames an existing applicant.
     """
     if uploader.role == ROLE_CANDIDATE:
         email = uploader.email
@@ -128,7 +151,7 @@ def _upsert_candidate(db: Session, contacts: dict, uploader: models.User) -> mod
         db.add(candidate)
         db.flush()
     else:
-        if contacts.get("name"):
+        if contacts.get("name") and (uploader.role == ROLE_CANDIDATE or not candidate.full_name):
             candidate.full_name = contacts["name"]
         if contacts.get("phone") and not candidate.phone:
             candidate.phone = contacts["phone"]

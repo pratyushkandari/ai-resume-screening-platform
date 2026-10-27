@@ -94,6 +94,7 @@ class Settings:
     embedding_model_name: str
     login_rate_limit_per_minute: int
     register_rate_limit_per_minute: int
+    upload_rate_limit_per_minute: int
     summary_cache_ttl_seconds: int
     allowed_extensions: tuple = field(default=(".pdf", ".docx", ".txt"))
 
@@ -147,6 +148,8 @@ def load_settings() -> Settings:
         # 0 disables the limit (useful for load tests); negative values are rejected.
         login_rate_limit_per_minute=_int("LOGIN_RATE_LIMIT_PER_MINUTE", 10, minimum=0),
         register_rate_limit_per_minute=_int("REGISTER_RATE_LIMIT_PER_MINUTE", 5, minimum=0),
+        # Per signed-in account; a batch upload counts as one request.
+        upload_rate_limit_per_minute=_int("UPLOAD_RATE_LIMIT_PER_MINUTE", 10, minimum=0),
         summary_cache_ttl_seconds=_int("SUMMARY_CACHE_TTL_SECONDS", 300),
     )
 

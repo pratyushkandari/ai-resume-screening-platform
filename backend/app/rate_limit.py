@@ -1,4 +1,4 @@
-"""Fixed-window rate limiting for sensitive endpoints (login, registration).
+"""Fixed-window rate limiting for sensitive endpoints (login, registration, uploads).
 
 Counters live in Redis when it is reachable (shared across replicas) and in
 process memory otherwise. Exceeding the limit returns 429 with ``Retry-After``.
@@ -10,8 +10,10 @@ import threading
 import time
 from typing import Callable, Dict, Tuple
 
-from fastapi import HTTPException, Request, status
+from fastapi import Depends, HTTPException, Request, status
 
+from . import models
+from .auth import get_current_user
 from .cache import redis_connection
 
 WINDOW_SECONDS = 60
@@ -60,22 +62,43 @@ def reset_memory_counters() -> None:
         _memory.clear()
 
 
+def _enforce(scope: str, client: str, limit: int) -> None:
+    """Count one attempt and raise 429 with ``Retry-After`` once ``client`` exceeds ``limit`` this minute.
+
+    A limit of 0 (or less) disables the check.
+    """
+    if limit <= 0:
+        return
+    # Fixed window: every attempt in the same minute shares one counter.
+    window = int(time.time() // WINDOW_SECONDS)
+    if _hit(scope, client, window) > limit:
+        retry_after = WINDOW_SECONDS - int(time.time() % WINDOW_SECONDS)
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many attempts. Please wait a minute and try again.",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+
 def rate_limit(scope: str, limit_per_minute: Callable[[], int]):
-    """Dependency factory: ``Depends(rate_limit("login", lambda: settings.login_rate_limit_per_minute))``."""
+    """Per-IP dependency factory: ``Depends(rate_limit("login", lambda: settings.login_rate_limit_per_minute))``."""
 
     def dependency(request: Request) -> None:
-        """Raise 429 with ``Retry-After`` when this client exceeded the limit this minute."""
-        limit = limit_per_minute()
-        if limit <= 0:
-            return
-        # Fixed window: every attempt in the same minute shares one counter.
-        window = int(time.time() // WINDOW_SECONDS)
-        if _hit(scope, _client_id(request), window) > limit:
-            retry_after = WINDOW_SECONDS - int(time.time() % WINDOW_SECONDS)
-            raise HTTPException(
-                status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Too many attempts. Please wait a minute and try again.",
-                headers={"Retry-After": str(retry_after)},
-            )
+        """Raise 429 with ``Retry-After`` when this client IP exceeded the limit this minute."""
+        _enforce(scope, _client_id(request), limit_per_minute())
+
+    return dependency
+
+
+def user_rate_limit(scope: str, limit_per_minute: Callable[[], int]):
+    """Per-account dependency factory for signed-in endpoints, e.g. uploads.
+
+    Keyed by user id rather than IP, so applicants behind one shared address do
+    not throttle each other and one account cannot dodge the limit by switching IPs.
+    """
+
+    def dependency(current_user: models.User = Depends(get_current_user)) -> None:
+        """Raise 429 with ``Retry-After`` when this account exceeded the limit this minute."""
+        _enforce(scope, f"user:{current_user.user_id}", limit_per_minute())
 
     return dependency
