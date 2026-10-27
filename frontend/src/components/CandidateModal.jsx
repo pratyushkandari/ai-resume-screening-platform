@@ -113,7 +113,7 @@ export default function CandidateModal({ candidate = null, jobSkills = [], onClo
               </div>
               <div style={{ background: "#f8fafc", padding: 12, borderRadius: 10, border: "1px solid #e2e8f0", textAlign: "center" }}>
                 <div className="small">Skill Fit</div>
-                <div style={{ fontSize: 22, fontWeight: 800, color: "#10b981", marginTop: 4 }}>
+                <div style={{ fontSize: 22, fontWeight: 800, color: "#059669", marginTop: 4 }}>
                   {Math.round((candidate.skill_score ?? 0) * 100)}%
                 </div>
               </div>
@@ -167,6 +167,7 @@ export default function CandidateModal({ candidate = null, jobSkills = [], onClo
             </h4>
             <div style={{ height: 240 }}>
               <Radar
+                role="img"
                 aria-label={`Radar chart of required skill coverage for ${title}`}
                 data={radarData}
                 options={{

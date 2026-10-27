@@ -9,7 +9,7 @@ import { downloadResume, getErrorMessage } from "../api";
  * @param {object} props.candidate - One entry of `summary.candidates` from the API.
  * @param {boolean} [props.isSelected] - Whether it is selected for comparison.
  * @param {(candidate: object) => void} [props.onViewRadar] - Opens the fit dialog.
- * @param {(candidateId: number) => void} [props.onToggleCompare] - Adds/removes it from the comparison.
+ * @param {(resumeId: number) => void} [props.onToggleCompare] - Adds/removes it from the comparison.
  */
 export default function CandidateCard({
   candidate,
@@ -76,7 +76,8 @@ export default function CandidateCard({
         <div style={{ marginTop: 12, marginBottom: 14 }}>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: 4 }}>
             <span style={{ color: "#64748b", fontWeight: 500 }}>Match Score</span>
-            <span style={{ fontWeight: 700, color: matchPercent >= 70 ? "#047857" : "#2563eb" }}>
+            {/* Green follows the API's Shortlisted decision, like the badge above. */}
+            <span style={{ fontWeight: 700, color: isShortlisted ? "#047857" : "#2563eb" }}>
               {matchPercent}%
             </span>
           </div>
@@ -85,7 +86,7 @@ export default function CandidateCard({
               style={{
                 height: "100%",
                 width: `${matchPercent}%`,
-                backgroundColor: matchPercent >= 70 ? "#10b981" : "#3b82f6",
+                backgroundColor: isShortlisted ? "#10b981" : "#3b82f6",
                 borderRadius: 3
               }}
             />
@@ -158,7 +159,7 @@ export default function CandidateCard({
             <button
               type="button"
               aria-pressed={isSelected}
-              onClick={() => onToggleCompare(candidate.candidate_id)}
+              onClick={() => onToggleCompare(candidate.resume_id)}
               className="btn"
               style={{
                 padding: "5px 9px",

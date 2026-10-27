@@ -117,17 +117,6 @@ export default function Login({ onLogin }) {
     marginBottom: "5px"
   };
 
-  const inputStyle = {
-    width: "100%",
-    padding: "10px 12px",
-    fontSize: "14px",
-    borderRadius: "6px",
-    border: "1px solid #cbd5e1",
-    backgroundColor: "#ffffff",
-    boxSizing: "border-box",
-    outline: "none"
-  };
-
   return (
     <div
       style={{
@@ -208,7 +197,7 @@ export default function Login({ onLogin }) {
               placeholder="e.g. Alex Johnson"
               value={form.name}
               onChange={handleChange}
-              style={inputStyle}
+              className="input"
             />
           </div>
         )}
@@ -223,7 +212,7 @@ export default function Login({ onLogin }) {
             placeholder="e.g. alex@company.com"
             value={form.email}
             onChange={handleChange}
-            style={inputStyle}
+            className="input"
           />
         </div>
 
@@ -238,7 +227,8 @@ export default function Login({ onLogin }) {
               placeholder="Enter password"
               value={form.password}
               onChange={handleChange}
-              style={{ ...inputStyle, paddingRight: 40 }}
+              className="input"
+              style={{ paddingRight: 40 }}
             />
             <button
               type="button"
@@ -300,8 +290,8 @@ export default function Login({ onLogin }) {
         {/* Role Selector (Registration Only) */}
         {isRegister && (
           <div style={{ marginBottom: 18 }}>
-            <span style={labelStyle}>Account Role</span>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <span id="login-role-label" style={labelStyle}>Account Role</span>
+            <div role="group" aria-labelledby="login-role-label" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               <button
                 type="button"
                 aria-pressed={form.role === "candidate"}
@@ -351,7 +341,7 @@ export default function Login({ onLogin }) {
               placeholder="Provided by your administrator"
               value={form.accessCode}
               onChange={handleChange}
-              style={inputStyle}
+              className="input"
             />
           </div>
         )}

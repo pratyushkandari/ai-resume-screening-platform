@@ -265,6 +265,17 @@ p {
   color: var(--slate-900);
 }
 
+/* Ghost button on dark surfaces (e.g. the comparison bar) */
+.btn-ghost-dark {
+  background-color: transparent;
+  color: var(--slate-300);
+}
+
+.btn-ghost-dark:hover {
+  background-color: var(--slate-800);
+  color: #ffffff;
+}
+
 /* Form Controls */
 .input, textarea, select {
   width: 100%;
