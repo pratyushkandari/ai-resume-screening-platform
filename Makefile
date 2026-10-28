@@ -2,7 +2,7 @@
 # Each target only wraps the commands documented in README.md, so nothing here is required.
 PY ?= python
 
-.PHONY: help install dev-backend dev-frontend test lint build benchmark docker-up docker-down clean
+.PHONY: help install dev-backend dev-frontend test lint build benchmark eval docker-up docker-down clean
 
 help:
 	@echo "install       Install backend (incl. test tools) and frontend dependencies"
@@ -12,6 +12,7 @@ help:
 	@echo "lint          Lint backend (ruff) and frontend (eslint)"
 	@echo "build         Build the production frontend bundle"
 	@echo "benchmark     Micro-benchmark the scoring function"
+	@echo "eval          Measure ranking quality on the graded dataset (needs the embedding model)"
 	@echo "docker-up     Build and start the full stack with Docker Compose"
 	@echo "docker-down   Stop the stack (data volumes are kept)"
 
@@ -37,6 +38,9 @@ build:
 
 benchmark:
 	cd backend && $(PY) benchmark_scoring.py
+
+eval:
+	cd backend && $(PY) -m evaluation.evaluate
 
 docker-up:
 	docker compose up --build

@@ -1,0 +1,21 @@
+Omar Farooq
+omar.farooq@example.com | +971 50 123 4567
+
+SUMMARY
+MLOps engineer with four years of experience taking machine learning models from notebooks to reliable production services.
+
+EXPERIENCE
+MLOps Engineer, Desert Analytics (2022 - Present)
+- Serve PyTorch models on Kubernetes with autoscaling GPU and CPU pools; p99 latency under 120 ms.
+- Built CI/CD pipelines that retrain, evaluate and deploy models, packaged with Docker.
+- Manage AWS SageMaker training jobs and the Terraform code for the ML platform.
+- Added model drift monitoring and automatic rollback.
+
+ML Platform Engineer, Gulf Retail Tech (2020 - 2022)
+- Built Python tooling for feature stores and batch scoring jobs.
+
+SKILLS
+Python, PyTorch, machine learning, Kubernetes, Docker, AWS, SageMaker, Terraform, CI/CD, Linux
+
+EDUCATION
+B.Sc. Computer Engineering, American University of Sharjah, 2020

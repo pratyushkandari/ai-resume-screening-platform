@@ -1,0 +1,21 @@
+Meera Iyer
+meera.iyer@example.com | +91 98450 12121
+
+SUMMARY
+Data analyst with four years of experience helping a retail business make decisions with data.
+
+EXPERIENCE
+Senior Data Analyst, BasketMart Retail (2022 - Present)
+- Write SQL against the Snowflake warehouse for sales, inventory and loyalty analysis.
+- Clean and explore data in Python with pandas; automated weekly reports that used to take two days.
+- Build Tableau dashboards used by 120 store managers.
+- Analyse pricing and promotion A/B tests with hypothesis tests and confidence intervals, and present results to the leadership team.
+
+Data Analyst, Spectrum Foods (2020 - 2022)
+- Built Excel models and SQL reports for supply chain planning.
+
+SKILLS
+SQL, Python, pandas, Tableau, statistics, A/B testing, Excel, Snowflake
+
+EDUCATION
+M.Sc. Economics, Madras School of Economics, 2020

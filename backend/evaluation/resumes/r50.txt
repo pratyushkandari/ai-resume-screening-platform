@@ -1,0 +1,19 @@
+Aryan Malhotra
+aryan.malhotra@example.com | +91 98110 77665
+
+SUMMARY
+Statistics graduate looking for a first data analyst role.
+
+EXPERIENCE
+Teaching Assistant, Department of Statistics, St. Stephen's College (2024 - 2025)
+- Ran tutorials on hypothesis testing and regression for second-year students.
+
+PROJECTS
+- Sales dashboard in Tableau built on a public retail dataset, with SQL queries to prepare the data.
+- Customer churn analysis in Python with pandas and logistic regression.
+
+SKILLS
+Python, pandas, SQL, Tableau, Excel, statistics, hypothesis testing
+
+EDUCATION
+B.Sc. Statistics, St. Stephen's College, Delhi University, 2025

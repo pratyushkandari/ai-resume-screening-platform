@@ -1,0 +1,19 @@
+Rohan Das
+rohan.das@example.com | +91 98300 44556
+
+SUMMARY
+Bootcamp graduate looking for a first role in data science or machine learning.
+
+EXPERIENCE
+Data Science Bootcamp, LearnLoop Academy (2025)
+- Six-month full-time programme: Python, statistics, scikit-learn, basic SQL and matplotlib.
+- Capstone: predicted house prices with gradient boosting; top 15% in a Kaggle competition.
+
+Customer Support Associate, Telcare Services (2021 - 2024)
+- Resolved 60 customer tickets a day and wrote Excel reports on common issues.
+
+SKILLS
+Python, scikit-learn, pandas, SQL (basic), matplotlib, Kaggle, Excel
+
+EDUCATION
+B.Com, University of Calcutta, 2021

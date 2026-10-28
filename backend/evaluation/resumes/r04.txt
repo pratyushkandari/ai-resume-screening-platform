@@ -1,0 +1,20 @@
+Neha Kulkarni
+neha.kulkarni@example.com | +91 90110 23456
+
+SUMMARY
+Junior backend developer with one year of full-time experience after a six-month internship. Comfortable with Python and Flask, learning how production systems are run.
+
+EXPERIENCE
+Associate Software Engineer, Tasktree Solutions (2024 - Present)
+- Maintain internal Flask tools for the operations team (leave tracking, asset inventory) backed by SQLite.
+- Wrote pytest tests that raised coverage of the inventory tool from 20% to 75%.
+- Containerised one tool with Docker so it could run on the shared office server.
+
+Backend Intern, Tasktree Solutions (2023 - 2024)
+- Built CSV import scripts in Python and fixed bugs in small Flask endpoints.
+
+SKILLS
+Python, Flask, SQLite, pytest, Docker (basic), Git, Linux command line
+
+EDUCATION
+B.E. Information Technology, Pune University, 2023

@@ -1,0 +1,21 @@
+Ravi Shankar
+ravi.shankar@example.com | +91 98860 45678
+
+SUMMARY
+Platform engineer with four years of experience building tools that help developers ship safely.
+
+EXPERIENCE
+Platform Engineer, DevNest (2022 - Present)
+- Build internal developer tools in Python with FastAPI: service catalogue, deploy approvals and secrets requests.
+- Run Kubernetes on AWS and provision clusters and networking with Terraform.
+- Own the CI/CD pipelines used by 80 engineers; every service is built as a Docker image.
+- Maintain the Linux base images and the patching process.
+
+DevOps Engineer, Byteforge (2020 - 2022)
+- Automated environment setup with Bash and Ansible.
+
+SKILLS
+Python, FastAPI, Docker, Kubernetes, AWS, Terraform, CI/CD, Linux, REST API
+
+EDUCATION
+B.E. Computer Science, BMS College of Engineering, 2020

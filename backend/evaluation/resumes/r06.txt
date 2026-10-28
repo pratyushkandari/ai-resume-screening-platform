@@ -1,0 +1,21 @@
+Fatima Zahra
+fatima.zahra@example.com | +212 661 234 567
+
+SUMMARY
+Python backend engineer, two years at a healthtech startup building patient-facing APIs.
+
+EXPERIENCE
+Backend Engineer, CareBridge Health (2023 - Present)
+- Build REST API endpoints in FastAPI for appointment booking and lab results, used by 50,000 patients.
+- Store documents in MongoDB with schema validation and TTL indexes for expiring sessions.
+- Implemented JWT authentication and role checks for doctors and patients.
+- Package services with Docker; wrote pytest suites that run on every pull request.
+
+Junior Developer, Webnest Agency (2022 - 2023)
+- Built small Python scripts and WordPress plugins for client sites.
+
+SKILLS
+Python, FastAPI, MongoDB, Docker, REST API, JWT, pytest, Git
+
+EDUCATION
+B.Sc. Computer Science, Mohammed V University, 2022

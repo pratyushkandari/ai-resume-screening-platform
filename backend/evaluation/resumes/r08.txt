@@ -1,0 +1,21 @@
+Rahul Verma
+rahul.verma@example.com | +91 98765 01234
+
+SUMMARY
+Frontend developer with three years of experience building single-page apps with ReactJS and Redux.
+
+EXPERIENCE
+Frontend Developer, ShopSphere (2022 - Present)
+- Build product listing and checkout screens in ReactJS with Redux Toolkit for an online grocery store.
+- Write modern JS (ES6+): async/await, modules and small utility libraries shared across teams.
+- Style components with SCSS and HTML5, tested on Chrome, Safari, Firefox and older Android browsers.
+- Integrate RESTful services for cart, payments and order tracking, with proper loading and error states.
+
+Web Developer, PixelCraft Studio (2021 - 2022)
+- Converted Figma designs into responsive pages and fixed cross-browser layout bugs.
+
+SKILLS
+ReactJS, Redux, JS (ES6+), HTML5, SCSS, RESTful services, Webpack, Git
+
+EDUCATION
+B.Tech Computer Engineering, NIT Kurukshetra, 2021

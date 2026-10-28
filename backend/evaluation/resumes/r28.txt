@@ -1,0 +1,20 @@
+Karthik Subramanian
+karthik.s@example.com | +91 98840 77889
+
+SUMMARY
+Financial analyst with five years of experience in budgeting, forecasting and financial modelling.
+
+EXPERIENCE
+Senior Financial Analyst, Coromandel Industries (2021 - Present)
+- Own the annual budget and monthly forecast models in Excel for a 400-crore business unit.
+- Automated variance reports with VBA macros, saving three days of work each month.
+- Pull ledger data with simple SQL queries for ad-hoc analysis.
+
+Financial Analyst, Southern Textiles (2019 - 2021)
+- Prepared MIS reports, cost analysis and cash-flow statements.
+
+SKILLS
+Excel, financial modelling, VBA, forecasting, budgeting, SQL (basic)
+
+EDUCATION
+MBA Finance, Anna University, 2019

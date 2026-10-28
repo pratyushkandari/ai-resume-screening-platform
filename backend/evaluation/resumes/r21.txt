@@ -1,0 +1,21 @@
+Olga Ivanova
+olga.ivanova@example.com | +7 916 123 4567
+
+SUMMARY
+Cloud engineer with four years of experience on Microsoft Azure.
+
+EXPERIENCE
+Cloud Engineer, Northwind Retail (2021 - Present)
+- Run AKS clusters for the e-commerce platform: node pools, ingress and secrets.
+- Define infrastructure with ARM templates and Bicep and review every change through pull requests.
+- Build Azure DevOps pipelines that build Docker images and deploy them to staging and production.
+- Maintain Linux VMs for legacy workloads, including patching and backups.
+
+Support Engineer, Sigma Soft (2020 - 2021)
+- Handled Azure subscriptions and user access for 40 client accounts.
+
+SKILLS
+Azure, AKS, Bicep, ARM templates, Azure DevOps, Docker, Linux, PowerShell
+
+EDUCATION
+B.Sc. Applied Informatics, Moscow State University, 2020

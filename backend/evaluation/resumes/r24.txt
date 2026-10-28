@@ -1,0 +1,18 @@
+Aditya Joshi
+aditya.joshi@example.com | +91 98220 33445
+
+SUMMARY
+Junior DevOps engineer finishing a one-year internship, keen to work on cloud infrastructure.
+
+EXPERIENCE
+DevOps Intern, Cloudnine Labs (2024 - Present)
+- Wrote GitHub Actions workflows that run tests and build Docker images for three repositories.
+- Set up small EC2 instances on AWS for staging and wrote setup notes for the team.
+- Use the Linux command line daily for logs, permissions and troubleshooting.
+- Shadowed the platform team on Kubernetes upgrades; now studying Kubernetes and Terraform.
+
+SKILLS
+AWS (Cloud Practitioner certified), Docker, GitHub Actions, Linux, Git, Bash (basic)
+
+EDUCATION
+B.E. Computer Engineering, Mumbai University, 2024

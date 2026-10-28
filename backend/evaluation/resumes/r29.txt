@@ -1,0 +1,21 @@
+Zoe Anderson
+zoe.anderson@example.com | +1 (312) 555-0164
+
+SUMMARY
+Product analyst with three years of experience at a SaaS company, focused on experimentation and user behaviour.
+
+EXPERIENCE
+Product Analyst, Loopwork (2022 - Present)
+- Analyse product usage with SQL on BigQuery and Python (pandas) to find drop-off points in onboarding.
+- Design and analyse experiments with product managers: sample sizes, statistics and guardrail metrics.
+- Track funnels in Mixpanel and build Tableau dashboards for five product teams.
+- My analysis of the trial flow led to a change that lifted paid conversion by 8%.
+
+Junior Analyst, Clearbit Media (2021 - 2022)
+- Built weekly KPI reports in SQL and Excel.
+
+SKILLS
+SQL, BigQuery, Python, pandas, statistics, experimentation, Mixpanel, Tableau, Excel
+
+EDUCATION
+B.A. Mathematics and Economics, University of Chicago, 2021

@@ -1,0 +1,21 @@
+Sofia Martinez
+sofia.martinez@example.com | +1 (415) 555-0142
+
+SUMMARY
+Python backend engineer with three years at a logistics startup, mostly Django and Django REST Framework.
+
+EXPERIENCE
+Backend Engineer, RouteWise Logistics (2022 - Present)
+- Built REST APIs with Django REST Framework for shipment tracking used by 300 dispatchers.
+- Moved slow label generation into Celery workers with Redis as the broker; checkout time dropped by 60%.
+- Tuned Postgres queries and added partial indexes for the delivery events table (40M rows).
+- Set up Docker Compose so new engineers run the whole stack locally with one command.
+
+Software Engineering Intern, Parcelo (2021 - 2022)
+- Wrote Django admin tools and pytest suites for the billing module.
+
+SKILLS
+Python, Django, Django REST Framework, Postgres, Celery, Redis, Docker Compose, REST APIs, pytest, Git
+
+EDUCATION
+B.S. Computer Science, San Jose State University, 2021

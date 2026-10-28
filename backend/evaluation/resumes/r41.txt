@@ -1,0 +1,20 @@
+Divya Reddy
+divya.reddy@example.com | +91 99490 12345
+
+SUMMARY
+Technical recruiter with four years of experience hiring engineers for product companies.
+
+EXPERIENCE
+Senior Technical Recruiter, TalentBridge (2022 - Present)
+- Hire frontend engineers with React and TypeScript experience, and platform engineers with Kubernetes, Terraform and AWS skills.
+- Screen candidates for backend roles in Python and Docker-based environments together with hiring managers.
+- Filled 85 engineering roles last year with an average time-to-hire of 32 days.
+
+Recruiter, PeopleFirst HR (2021 - 2022)
+- Sourced candidates on LinkedIn and coordinated interview loops.
+
+SKILLS
+Technical sourcing, candidate screening, LinkedIn Recruiter, stakeholder management, offer negotiation
+
+EDUCATION
+MBA Human Resources, Osmania University, 2021

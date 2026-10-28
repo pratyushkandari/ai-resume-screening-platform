@@ -1,0 +1,21 @@
+Lina Haddad
+lina.haddad@example.com | +961 3 123 456
+
+SUMMARY
+Data analyst with two years of experience in statistical analysis and reporting with SQL and R.
+
+EXPERIENCE
+Data Analyst, MedTrack Clinics (2023 - Present)
+- Write SQL to analyse appointment and patient-flow data across 18 clinics.
+- Built regression models in R (dplyr, ggplot2) to explain no-show rates; my recommendations cut no-shows by 12%.
+- Maintain Looker dashboards for clinic managers.
+- Run statistics for operational experiments and document the assumptions behind them.
+
+Research Assistant, American University of Beirut (2022 - 2023)
+- Cleaned survey data in R and prepared charts for publications.
+
+SKILLS
+SQL, R, dplyr, ggplot2, statistics, regression, Looker
+
+EDUCATION
+M.S. Biostatistics, American University of Beirut, 2022

@@ -1,0 +1,21 @@
+Grace Liu
+grace.liu@example.com | +1 (646) 555-0177
+
+SUMMARY
+Site reliability engineer with four years of experience keeping customer-facing services fast and available.
+
+EXPERIENCE
+Site Reliability Engineer, Harbor Fintech (2022 - Present)
+- Run container orchestration on Amazon's managed container service for 60 services, including autoscaling and node upgrades.
+- Define all cloud infrastructure in HashiCorp's declarative configuration language, with plans reviewed in pull requests.
+- Built automated build-and-release pipelines that package services into containers and roll them out gradually.
+- Tune Unix servers and lead incident response; reduced paging alerts by 45%.
+
+Production Engineer, Quill Media (2020 - 2022)
+- Automated server provisioning and introduced service-level objectives for the publishing platform.
+
+SKILLS
+Container orchestration, infrastructure as code, release automation, Unix administration, observability, incident response
+
+EDUCATION
+B.S. Computer Engineering, Columbia University, 2020

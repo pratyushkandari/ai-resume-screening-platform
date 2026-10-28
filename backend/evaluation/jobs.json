@@ -1,0 +1,32 @@
+[
+  {
+    "id": "backend",
+    "title": "Backend Engineer (Python)",
+    "description": "Design, build and operate REST APIs in Python with FastAPI. You will model data in PostgreSQL, cache hot paths with Redis, package services with Docker and own them in production: logging, monitoring, performance tuning and on-call. 2+ years building backend services is expected.",
+    "skills": ["python", "fastapi", "postgresql", "redis", "docker", "rest api"]
+  },
+  {
+    "id": "frontend",
+    "title": "Frontend Engineer (React)",
+    "description": "Build fast, accessible web applications with React and TypeScript. You will turn designs into reusable components, manage client state, integrate REST APIs, write CSS that works on every screen size and keep bundle size and page performance under control. 2+ years of professional frontend work is expected.",
+    "skills": ["react", "typescript", "javascript", "css", "html", "rest api"]
+  },
+  {
+    "id": "ml",
+    "title": "Machine Learning Engineer",
+    "description": "Train, evaluate and deploy machine learning models for text and ranking problems. You will build training pipelines in Python with PyTorch, work on NLP models, design offline evaluation, query data with SQL and ship models behind APIs in Docker containers. Experience taking models to production is required.",
+    "skills": ["python", "pytorch", "machine learning", "nlp", "sql", "docker"]
+  },
+  {
+    "id": "devops",
+    "title": "DevOps Engineer",
+    "description": "Run our cloud infrastructure on AWS. You will manage Kubernetes clusters, write infrastructure as code with Terraform, build CI/CD pipelines, harden Linux hosts and keep services observable and reliable. Experience operating production systems and being on-call is expected.",
+    "skills": ["aws", "kubernetes", "terraform", "docker", "ci/cd", "linux"]
+  },
+  {
+    "id": "analyst",
+    "title": "Data Analyst",
+    "description": "Turn business questions into analysis. You will write SQL against the data warehouse, clean and explore data with Python and pandas, build dashboards in Tableau, run A/B test analysis with sound statistics and present findings to product and business teams. Strong Excel skills are a plus.",
+    "skills": ["sql", "python", "pandas", "tableau", "statistics", "excel"]
+  }
+]

@@ -1,0 +1,20 @@
+Aisha Bello
+aisha.bello@example.com | +234 803 123 4567
+
+SUMMARY
+ML engineer with two years of experience building conversational NLP models with TensorFlow.
+
+EXPERIENCE
+ML Engineer, Chatwise (2023 - Present)
+- Built intent classification and entity extraction models in TensorFlow and Keras for a banking chatbot.
+- Deployed the intent model behind a Flask API packaged with Docker; it serves 30,000 conversations a day.
+- Query conversation logs with SQL to find failure cases and build new training sets.
+
+Junior Data Scientist, Afrimetrics (2022 - 2023)
+- Built machine learning baselines for text sentiment in Python.
+
+SKILLS
+Python, TensorFlow, Keras, NLP, machine learning, Docker, SQL, Flask
+
+EDUCATION
+B.Sc. Computer Science, University of Ibadan, 2022

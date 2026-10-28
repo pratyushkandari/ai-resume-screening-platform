@@ -1,0 +1,21 @@
+Priyanka Nair
+priyanka.nair@example.com | +91 94470 55667
+
+SUMMARY
+Data scientist with three years of experience building predictive models and analyses in Python.
+
+EXPERIENCE
+Data Scientist, RetailIQ (2022 - Present)
+- Built churn and demand-forecasting models with sklearn and XGBoost, explained with SHAP for business teams.
+- Clean and join data with pandas and SQL; most of my work lives in notebooks and weekly reports.
+- Classified customer reviews with spaCy and simple NLP features.
+- Handed one model to the engineering team for deployment; I did not run it in production myself.
+
+Analyst, Datamatic Consulting (2021 - 2022)
+- Built Excel and SQL reports and the first logistic regression models for a bank client.
+
+SKILLS
+Python, sklearn, XGBoost, pandas, SQL, spaCy, statistics, Jupyter, Excel
+
+EDUCATION
+M.Sc. Statistics, University of Kerala, 2021

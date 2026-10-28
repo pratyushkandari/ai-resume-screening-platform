@@ -1,0 +1,21 @@
+Sanjay Pillai
+sanjay.pillai@example.com | +91 98450 66778
+
+SUMMARY
+DevOps engineer with three years of experience automating cloud infrastructure for a SaaS company.
+
+EXPERIENCE
+DevOps Engineer, Billify Cloud (2022 - Present)
+- Manage k8s workloads on EKS: Helm charts, autoscaling and rolling deployments for 30 services.
+- Provision AWS networking, databases and IAM as IaC with Terraform, with a review for every change.
+- Maintain Jenkins pipelines that build Docker images, run tests and promote releases.
+- Administer Ubuntu and RHEL servers, including patching and log shipping.
+
+Systems Engineer, NetCore Infotech (2021 - 2022)
+- Automated server setup with shell scripts and monitored uptime with Nagios.
+
+SKILLS
+AWS, EKS, k8s, Terraform, Docker, Jenkins, Helm, Ubuntu, RHEL, Bash
+
+EDUCATION
+B.Tech Computer Science, Cochin University, 2021

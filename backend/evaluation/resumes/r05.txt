@@ -1,0 +1,21 @@
+Lukas Weber
+lukas.weber@example.com | +49 151 2345 6789
+
+SUMMARY
+Backend engineer with five years of experience building Go microservices for high-volume event processing.
+
+EXPERIENCE
+Backend Engineer, StreamCart GmbH (2021 - Present)
+- Design gRPC microservices in Go that handle 15,000 order events per second.
+- Model data in PostgreSQL and run zero-downtime schema migrations.
+- Consume and produce Kafka topics; built the dead-letter handling used by six teams.
+- Deploy services to Kubernetes with Helm charts and own their dashboards.
+
+Software Engineer, Nordtel (2019 - 2021)
+- Wrote Go services for billing, plus small Python scripts for data fixes and reports.
+
+SKILLS
+Go, gRPC, PostgreSQL, Kafka, Kubernetes, Helm, Prometheus, Python (scripting)
+
+EDUCATION
+M.Sc. Computer Science, TU Munich, 2019
