@@ -199,7 +199,7 @@ export default function UploadJob() {
               placeholder="Type competency and press Enter (e.g. PyTorch, Redis, Kubernetes)"
             />
             <span style={{ fontSize: 12, color: "#64748b", marginTop: 4, display: "block" }}>
-              Skills are matched against the text of each resume (70% of the score); the title and description drive the semantic similarity (30%).
+              The title and description drive the semantic similarity (90% of the score); required skills found in the resume add the other 10% and are listed for every candidate.
             </span>
           </div>
 

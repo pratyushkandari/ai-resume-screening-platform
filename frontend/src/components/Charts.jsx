@@ -24,6 +24,10 @@ ChartJS.register(
   Legend
 );
 
+// Display-only tier above the API's shortlist cut-off (0.74). On the evaluation set
+// (backend/evaluation) scores from about 0.80 up are mostly strong fits (grade 3).
+const STRONG_FIT_SCORE = 0.8;
+
 /** Draw a ✓ or ✕ on a small white circle; used as point markers in the coverage chart. */
 function renderMarkerCanvas(symbol, fillStyle) {
   const canvas = document.createElement("canvas");
@@ -52,7 +56,7 @@ function renderMarkerCanvas(symbol, fillStyle) {
 /**
  * Dashboard analytics for one job, computed only from the summary API response:
  * - bar: how many applicants have each required skill;
- * - doughnut: strong fits (≥75%), other shortlisted, under review;
+ * - doughnut: strong fits (≥80%), other shortlisted, under review;
  * - scatter: semantic fit vs. skill fit per applicant;
  * - line: which required skills each applicant covers (✓ / ✕).
  *
@@ -102,14 +106,14 @@ export default function Charts({ jobSkillCounts = [], candidates = [] }) {
     const buckets = { high: 0, medium: 0, low: 0 };
     (candidates || []).forEach((c) => {
       if (c.status !== "accepted") buckets.low++;
-      else if ((c.score || 0) >= 0.75) buckets.high++;
+      else if ((c.score || 0) >= STRONG_FIT_SCORE) buckets.high++;
       else buckets.medium++;
     });
     return buckets;
   }, [candidates]);
 
   const donutData = useMemo(() => ({
-    labels: ["Strong fit (≥75%)", "Shortlisted", "Under review"],
+    labels: ["Strong fit (≥80%)", "Shortlisted", "Under review"],
     datasets: [
       {
         data: [qualityBuckets.high, qualityBuckets.medium, qualityBuckets.low],
@@ -229,7 +233,7 @@ export default function Charts({ jobSkillCounts = [], candidates = [] }) {
               Applicant Quality Breakdown
             </h4>
             <div style={{ width: "100%", height: 145 }}>
-              <Doughnut role="img" data={donutData} options={donutOptions} aria-label={`Doughnut chart: ${qualityBuckets.high} strong fits (75% or more), ${qualityBuckets.medium} other shortlisted, ${qualityBuckets.low} under review`} />
+              <Doughnut role="img" data={donutData} options={donutOptions} aria-label={`Doughnut chart: ${qualityBuckets.high} strong fits (80% or more), ${qualityBuckets.medium} other shortlisted, ${qualityBuckets.low} under review`} />
             </div>
           </div>
 

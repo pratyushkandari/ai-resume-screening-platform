@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS rankings (
   job_id     INTEGER REFERENCES jobs(job_id) ON DELETE CASCADE,
   resume_id  INTEGER REFERENCES resumes(resume_id) ON DELETE CASCADE,
   score      DOUBLE PRECISION NOT NULL,          -- composite score 0.0–1.0
-  status     TEXT DEFAULT 'pending',             -- 'accepted' (>= 0.60) | 'rejected'
+  status     TEXT DEFAULT 'pending',             -- 'accepted' (>= 0.74) | 'rejected'
   created_at TIMESTAMPTZ DEFAULT now(),
   CONSTRAINT uix_job_resume UNIQUE (job_id, resume_id)
 );

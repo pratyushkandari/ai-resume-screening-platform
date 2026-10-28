@@ -8,8 +8,14 @@ persisted rankings)::
 
     skill_score = |required ∩ found| / |required|
     semantic    = (cos(job, resume) + 1) / 2            # 0.5 when an embedding is missing
-    final       = min(1, 0.70·skill_score + 0.30·semantic + 0.05·[skill_score ≥ 0.70])
-    status      = "accepted" if final ≥ 0.60 else "rejected"
+    final       = 0.10·skill_score + 0.90·semantic
+    status      = "accepted" if final ≥ 0.74 else "rejected"
+
+The weights and the threshold come from ``python -m evaluation.evaluate``: on a graded
+set of 50 resumes and 5 jobs, cross-validated tuning chose a low skill weight because
+keyword matching is fooled by skill lists without real experience. Without embeddings
+the semantic part is neutral, so the order then follows skills but nobody reaches the
+shortlist threshold until "Evaluate" fills the embeddings in.
 """
 
 from __future__ import annotations
@@ -32,11 +38,10 @@ from .config import settings
 logger = logging.getLogger("ml")
 
 EMBEDDING_DIM = 384
-SKILL_WEIGHT = 0.70
-SEMANTIC_WEIGHT = 0.30
-COVERAGE_BONUS = 0.05
-BONUS_MIN_SKILL_SCORE = 0.70
-ACCEPT_THRESHOLD = 0.60
+# Tuned with evaluation/evaluate.py; the two weights must add up to 1.
+SKILL_WEIGHT = 0.10
+SEMANTIC_WEIGHT = 0.90
+ACCEPT_THRESHOLD = 0.74
 NEUTRAL_SEMANTIC = 0.50
 STATUS_ACCEPTED = "accepted"
 STATUS_REJECTED = "rejected"
@@ -475,8 +480,7 @@ def score_candidates(
         else:
             # A job without required skills cannot reward or penalise skills: stay neutral.
             matched_count, skill_score = 0, NEUTRAL_SEMANTIC
-        bonus = COVERAGE_BONUS if skill_score >= BONUS_MIN_SKILL_SCORE else 0.0
-        final = min(1.0, SKILL_WEIGHT * skill_score + SEMANTIC_WEIGHT * sem + bonus)
+        final = SKILL_WEIGHT * skill_score + SEMANTIC_WEIGHT * sem
         results.append(
             {
                 "semantic": round(sem, 4),

@@ -96,7 +96,7 @@ class SkillCount(BaseModel):
 class CandidateSummary(BaseModel):
     """One candidate on the dashboard (their best-scoring resume for this job).
 
-    ``score`` = 0.7 x ``skill_score`` + 0.3 x ``semantic`` (+0.05 bonus), capped at 1.
+    ``score`` = 0.1 x ``skill_score`` + 0.9 x ``semantic``; ``status`` is "accepted" from 0.74.
     ``coverage_vector`` has one 1/0 entry per required skill, in ``job_skills`` order.
     """
 

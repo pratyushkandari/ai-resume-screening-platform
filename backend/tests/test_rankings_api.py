@@ -41,8 +41,11 @@ def test_summary_ranks_candidates(client, job, hr):
     assert r.headers["X-Cache"] == "MISS"  # Redis unreachable in tests
     assert [c["candidate_name"] for c in body["candidates"]] == ["Alex Strong", "Bea Weak"]
     top = body["candidates"][0]
-    assert top["status"] == "accepted" and top["skill_score"] == 1.0 and top["filename"] == "resume.txt"
-    assert body["candidates"][1]["status"] == "rejected"
+    assert top["skill_score"] == 1.0 and top["filename"] == "resume.txt"
+    # Without embeddings the semantic part is neutral (0.5): skills still decide the order,
+    # but nobody reaches the shortlist cut-off until "Evaluate" fills the embeddings in.
+    assert top["semantic"] == 0.5 and top["score"] == pytest.approx(0.55)
+    assert [c["status"] for c in body["candidates"]] == ["rejected", "rejected"]
     assert body["job_skills"] == ["python", "docker", "sql", "fastapi"]
     assert {s["skill_name"]: s["matches"] for s in body["job_skill_counts"]} == {"python": 1, "docker": 1, "sql": 1, "fastapi": 1}
     assert body["semantic_available"] is False and body["last_ranked_at"] is None
