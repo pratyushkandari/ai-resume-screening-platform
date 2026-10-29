@@ -96,5 +96,11 @@ Back up `UPLOAD_DIR` together with the database; rows reference files by name.
 ## Schema
 
 `sql/seed.sql` is idempotent (`CREATE TABLE IF NOT EXISTS`) and safe to re-run.
-The API also creates missing tables at start-up. Changing existing columns needs a
-migration tool (e.g. Alembic), which this project does not include yet.
+The API also creates missing tables at start-up, and adds `resumes.semantic_score` to
+older databases. Other changes to existing tables need a migration tool (e.g.
+Alembic), which this project does not include yet.
+
+### A large job's dashboard is slow without the cache
+Each resume stores its semantic score. Resumes uploaded before that column existed, or
+while the model was not loaded, are scored from their embeddings on every request
+until **Evaluate Candidates** stores the score. Run it once for the job.

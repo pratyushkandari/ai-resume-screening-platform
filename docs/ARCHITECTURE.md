@@ -32,7 +32,8 @@ process and loads in a background thread at start-up.
    names replaced, length capped in bytes).
 3. Text extraction (pypdf / python-docx / encoding-aware TXT). Unreadable,
    encrypted or image-only files fail with a per-file error and are deleted.
-4. All readable texts of the request are embedded in **one** batched model call.
+4. All readable texts of the request are embedded in **one** batched model call,
+   and each resume's semantic score against the job is computed and stored with it.
 5. Each resume is stored inside its own savepoint: applicant lookup, resume row,
    skill links. One failure never leaves partial rows or blocks the batch. The
    applicant is the signed-in account for candidate uploads, and the email in the
@@ -43,21 +44,32 @@ process and loads in a background thread at start-up.
 ### Dashboard (`GET /api/jobs/{id}/summary`)
 1. Recruiter must own the job.
 2. Cache-aside: Redis key `job:summary:{id}` (TTL `SUMMARY_CACHE_TTL_SECONDS`).
-3. On a miss: the job's skills, all resumes with candidates and skills are loaded
-   with a **constant number of queries** (eager `selectinload`, verified by a test).
-4. `score_candidates` scores every resume (one matrix-vector product for all cosines).
-5. One entry per candidate (their best resume), skill coverage counts, top skills
-   among this job's applicants, `last_ranked_at`, and `semantic_available`.
+3. On a miss, three queries load what scoring needs (verified by tests): the
+   resumes with their applicant names and stored semantic scores, their skill
+   names, and embeddings only for resumes that have no stored score yet. Resume
+   text, parsed JSON and stored embeddings are not read.
+4. `score_candidates` combines skill coverage with the stored semantic score
+   (cosines are computed, in one matrix-vector product, only where a score is missing).
+5. One entry per candidate (their best resume). The response lists the best 100
+   and, over every applicant, the totals the dashboard shows (applicants,
+   shortlisted, strong fits, average score), skill coverage counts, top skills,
+   `last_ranked_at` and `semantic_available`.
+
+Storing the semantic score is safe because neither embedding changes after it is
+computed. Before this, every uncached request decoded 10,000 JSON embeddings and
+returned a 3.3 MB response; the [README](../README.md#load-test) has the measurements.
 
 ### Evaluate (`POST /api/jobs/{id}/rank`)
 Locks the job row (PostgreSQL `SELECT ... FOR UPDATE`, so two simultaneous clicks
-run one after the other), computes any embeddings that were missing at upload time
-(model unavailable then), re-scores all resumes, replaces the job's `rankings`
-snapshot and invalidates the cache. `GET /api/jobs/{id}/rankings` returns the snapshot.
+run one after the other), computes the embeddings and semantic scores that were
+missing at upload time (model unavailable then), re-scores all resumes, replaces
+the job's `rankings` snapshot and invalidates the cache.
+`GET /api/jobs/{id}/rankings` returns the snapshot, every resume, in the same order
+as the dashboard.
 
 ## Scoring
 
-See the formula in the [README](../README.md#how-scoring-works). Constants live at
+See the formula in the [README](../README.md#how-ranking-works). Constants live at
 the top of `ml_utils.py`. A missing embedding contributes a neutral 0.5 rather
 than a random vector, and the response flags it (`semantic_available: false`).
 
@@ -70,7 +82,7 @@ than a random vector, and the response flags it (`semantic_available: false`).
 | skills | shared vocabulary (canonical lowercase) | unique name |
 | job_skills | job ↔ skill | unique (job_id, skill_id) |
 | candidates | applicant profiles parsed from resumes | unique email |
-| resumes | file path (relative), text, parsed JSON, embedding, job | FK candidate CASCADE, job SET NULL |
+| resumes | file path (relative), text, parsed JSON, embedding, semantic score, job | FK candidate CASCADE, job SET NULL |
 | resume_skills | resume ↔ skill with match confidence | unique (resume_id, skill_id) |
 | rankings | saved evaluation snapshot | unique (job_id, resume_id) |
 
@@ -78,7 +90,8 @@ The schema is created by `Base.metadata.create_all` at start-up (only missing
 tables; `app/schema.py`, retried by `/readyz` if the database was down) and by
 `sql/seed.sql` for Docker; both define the same columns, constraints and indexes
 (including `lower(email)` indexes used by login and applicant lookup). At start-up,
-skills that differ only by case/spelling (e.g. `Docker`/`docker`) are merged.
+skills that differ only by case/spelling (e.g. `Docker`/`docker`) are merged, and
+`resumes.semantic_score` is added to databases created before it existed.
 
 ## Security model
 
@@ -118,16 +131,21 @@ skills that differ only by case/spelling (e.g. `Docker`/`docker`) are merged.
 
 ## Limitations
 
-* Weights (0.7 / 0.3 / 0.05) and threshold (0.6) are not tuned on labelled data;
-  there is no evaluation set yet.
+* The weights (0.10 / 0.90) and threshold (0.74) were tuned on a small graded set
+  (5 jobs, 50 resumes, one set of labels); see the README for what that does and
+  does not show.
 * Skill matching is lexical: aliases cover common variants only, and context
   ("no experience with Java") is not understood.
+* The API runs one Uvicorn worker, and scoring is CPU-bound, so uncached dashboard
+  requests for very large jobs queue behind each other; the Redis cache absorbs
+  repeated loads.
 * MiniLM truncates long inputs, so long resumes are embedded mostly from their beginning.
 * Ingestion is synchronous; very large batches are bounded by `MAX_BATCH_FILES`
   rather than handled by a background queue.
 * Uploaded files live on a filesystem path; multiple replicas need shared
   (ReadWriteMany) storage or a move to object storage.
-* No schema migration tool: new columns require a migration step (e.g. Alembic).
+* No schema migration tool: start-up adds `resumes.semantic_score` itself, but
+  other new columns require a migration step (e.g. Alembic).
 * The candidate job list shows the newest 50 positions; the UI has no paging yet
   (`GET /api/jobs` supports `page`/`limit`).
 * Account emails are not verified, so an account only proves control of the

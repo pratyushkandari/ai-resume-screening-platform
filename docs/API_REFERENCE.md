@@ -140,23 +140,29 @@ Live scores, one entry per candidate (their best resume), highest first. Header
   "top_skills": [{ "skill_name": "python", "matches": 12 }],
   "candidates": [{
     "candidate_id": 18, "candidate_name": "Alice Kumar", "resume_id": 42, "filename": "alice.pdf",
-    "semantic": 0.81, "skill_score": 0.6667, "score": 0.7097, "status": "accepted",
+    "semantic": 0.81, "skill_score": 0.6667, "score": 0.7957, "status": "accepted",
     "matched_skills": ["docker", "python"], "missing_skills": ["pytorch"],
     "coverage_vector": [1, 0, 1], "coverage_percent": 67 }],
+  "total_candidates": 15, "shortlisted_candidates": 4, "strong_fits": 1, "average_score": 0.6421,
   "semantic_available": true,
   "last_ranked_at": "2026-10-22T07:30:00+00:00"
 }
 ```
-`top_skills` counts skills among this job's applicants. `semantic_available` is false
-when any score used the neutral 0.5 semantic value.
+`score` is `0.1 × skill_score + 0.9 × semantic`, and `status` is `accepted` from 0.74.
+`candidates` holds at most the best 100; the counts and `job_skill_counts` cover every
+applicant, and `/rankings` has the full list. `strong_fits` counts shortlisted applicants
+scoring 0.80 or more. `top_skills` counts skills among this job's applicants.
+`semantic_available` is false when any score used the neutral 0.5 semantic value.
 
 ### `POST /api/jobs/{job_id}/rank`
-Fills missing embeddings (if the model is loaded), re-scores every resume and replaces
-the saved snapshot: `{"status": "done", "ranked": 12, "ranked_at": "..."}`.
+Fills in missing embeddings and semantic scores (if the model is loaded), re-scores
+every resume and replaces the saved snapshot:
+`{"status": "done", "ranked": 12, "ranked_at": "..."}`.
 
 ### `GET /api/jobs/{job_id}/rankings`
-The saved snapshot, one row per resume:
-`[{"ranking_id": 7, "resume_id": 42, "candidate_id": 18, "candidate_name": "Alice Kumar", "score": 0.7097, "status": "accepted"}]`
+The saved snapshot, one row per resume, in the same order as the dashboard (ties by
+resume id):
+`[{"ranking_id": 7, "resume_id": 42, "candidate_id": 18, "candidate_name": "Alice Kumar", "score": 0.7957, "status": "accepted"}]`
 
 ## Operations
 
