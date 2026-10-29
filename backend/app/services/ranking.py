@@ -253,7 +253,8 @@ def list_rankings(db: Session, job_id: int) -> List[Dict]:
         db.query(models.Ranking)
         .options(selectinload(models.Ranking.resume).selectinload(models.Resume.candidate))
         .filter(models.Ranking.job_id == job_id)
-        .order_by(models.Ranking.score.desc(), models.Ranking.ranking_id)
+        # Same tie-break as the dashboard (resume id), so equal scores list in the same order.
+        .order_by(models.Ranking.score.desc(), models.Ranking.resume_id)
         .all()
     )
     out = []

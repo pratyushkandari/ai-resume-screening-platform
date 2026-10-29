@@ -85,6 +85,17 @@ def test_rank_saves_snapshot_and_backfills_embeddings(client, job, hr, fake_mode
     assert len(client.get(f"/api/jobs/{job['job_id']}/rankings", headers=hr["headers"]).json()) == 2
 
 
+def test_saved_rankings_break_ties_like_the_dashboard(client, hr):
+    job = create_job(client, hr["headers"])
+    for name in ("Ann Equal", "Ben Equal", "Cat Equal"):
+        upload_text(client, hr["headers"], job["job_id"], f"{name}\nPython, Docker, SQL and FastAPI engineer.")
+    client.post(f"/api/jobs/{job['job_id']}/rank", headers=hr["headers"])
+    summary = client.get(f"/api/jobs/{job['job_id']}/summary", headers=hr["headers"]).json()["candidates"]
+    rows = client.get(f"/api/jobs/{job['job_id']}/rankings", headers=hr["headers"]).json()
+    assert len({c["score"] for c in summary}) == 1  # a three-way tie
+    assert [r["resume_id"] for r in rows] == [c["resume_id"] for c in summary]
+
+
 def test_last_ranked_at_carries_a_time_zone(client, job, hr):
     # Without a zone, browsers read the timestamp as local time and show the wrong hour.
     client.post(f"/api/jobs/{job['job_id']}/rank", headers=hr["headers"])
