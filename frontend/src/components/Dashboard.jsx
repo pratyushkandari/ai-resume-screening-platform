@@ -129,12 +129,11 @@ export default function Dashboard() {
     setCompareIds((prev) => (prev.includes(resumeId) ? prev.filter((x) => x !== resumeId) : [...prev, resumeId]));
   }
 
-  // Calculate high-level summary metrics
-  const totalApplicants = summary?.candidates?.length || 0;
-  const shortlistedCount = (summary?.candidates || []).filter(c => c.status === "accepted").length;
-  const avgScore = totalApplicants > 0
-    ? Math.round(((summary.candidates.reduce((acc, c) => acc + (c.score || 0), 0) / totalApplicants) * 100))
-    : 0;
+  // Totals come from the API and cover every applicant; `candidates` holds only the best ones.
+  const totalApplicants = summary?.total_candidates || 0;
+  const shortlistedCount = summary?.shortlisted_candidates || 0;
+  const avgScore = Math.round((summary?.average_score || 0) * 100);
+  const shownCount = summary?.candidates?.length || 0;
 
   // What to show instead of the analytics while there is no summary to display.
   let placeholder = null;
@@ -265,13 +264,13 @@ export default function Dashboard() {
 
         <div className="stat-box">
           <div className="stat-label">Total Applicants</div>
-          <div className="stat-value">{totalApplicants}</div>
+          <div className="stat-value">{totalApplicants.toLocaleString()}</div>
           <div className="stat-desc">For selected requisition</div>
         </div>
 
         <div className="stat-box">
           <div className="stat-label">Shortlisted Candidates</div>
-          <div className="stat-value" style={{ color: "#059669" }}>{shortlistedCount}</div>
+          <div className="stat-value" style={{ color: "#059669" }}>{shortlistedCount.toLocaleString()}</div>
           <div className="stat-desc">Exceeding qualification threshold</div>
         </div>
 
@@ -365,7 +364,7 @@ export default function Dashboard() {
                 <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>
                   <span>{summary.job_skills?.length || 0} Required Skills</span>
                   <span style={{ margin: "0 6px" }}>•</span>
-                  <span>{summary.candidates?.length || 0} Candidates Evaluated</span>
+                  <span>{totalApplicants.toLocaleString()} Candidates Evaluated</span>
                   <span style={{ margin: "0 6px" }}>•</span>
                   <span>
                     {summary.last_ranked_at
@@ -373,7 +372,7 @@ export default function Dashboard() {
                       : "Rankings not saved yet"}
                   </span>
                 </div>
-                {!summary.semantic_available && summary.candidates?.length > 0 && (
+                {!summary.semantic_available && totalApplicants > 0 && (
                   <div role="note" style={{ fontSize: 12, color: "#b45309", marginTop: 6 }}>
                     Some semantic scores are neutral (50%) because the embedding model was unavailable.
                     Use “Evaluate Candidates” once the model is loaded to fill them in.
@@ -399,6 +398,7 @@ export default function Dashboard() {
             <Charts
               jobSkillCounts={summary.job_skill_counts || []}
               candidates={summary.candidates || []}
+              totals={{ all: totalApplicants, shortlisted: shortlistedCount, strong: summary.strong_fits || 0 }}
             />
           </div>
 
@@ -415,20 +415,22 @@ export default function Dashboard() {
               }}
             >
               <div>
-                <div className="card-title">Applicant Pool ({summary.candidates?.length || 0})</div>
+                <div className="card-title">Applicant Pool ({totalApplicants.toLocaleString()})</div>
                 <div className="card-subtitle">
                   Ranked by composite scoring (Dense Semantic Similarity + Skill Overlap)
                 </div>
               </div>
 
-              {summary.candidates?.length > 0 && (
+              {shownCount > 0 && (
                 <div style={{ fontSize: 12, color: "#64748b", fontWeight: 500 }}>
-                  Showing all evaluated applicants for this position
+                  {shownCount < totalApplicants
+                    ? `Showing the top ${shownCount} of ${totalApplicants.toLocaleString()} applicants`
+                    : "Showing all evaluated applicants for this position"}
                 </div>
               )}
             </div>
 
-            {summary.candidates?.length === 0 ? (
+            {shownCount === 0 ? (
               <div
                 style={{
                   textAlign: "center",
