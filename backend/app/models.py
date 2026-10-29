@@ -76,6 +76,9 @@ class Resume(Base):
     raw_text = Column(Text)
     parsed_json = Column(JSON_TYPE)               # audit copy: {"parsed": {name, email, phone}, "skills": [...]}
     embedding = Column(JSON_TYPE)
+    # (cos + 1) / 2 against this resume's job, stored once both embeddings exist so the
+    # dashboard never has to load embeddings; NULL until then.
+    semantic_score = Column(Float)
 
     candidate = relationship("Candidate")
     resume_skills = relationship("ResumeSkill", back_populates="resume", cascade="all, delete-orphan")

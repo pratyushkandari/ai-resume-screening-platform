@@ -1,4 +1,4 @@
-"""Database schema preparation: create missing tables and merge duplicate skills.
+"""Database schema preparation: create missing tables and columns, merge duplicate skills.
 
 Runs at start-up. If the database is not reachable yet (for example it starts
 after the API), the readiness probe calls ``ensure_schema`` again until it
@@ -10,6 +10,9 @@ from __future__ import annotations
 import logging
 import threading
 
+from sqlalchemy import inspect, text
+from sqlalchemy.engine import Engine
+
 from . import models  # noqa: F401  (registers tables on Base.metadata)
 from .db import Base, SessionLocal, engine
 from .services.skills import merge_duplicate_skills
@@ -17,6 +20,20 @@ from .services.skills import merge_duplicate_skills
 logger = logging.getLogger("schema")
 _ready = False
 _lock = threading.Lock()
+
+
+def add_missing_columns(bind: Engine) -> None:
+    """Add columns introduced after a database was first created.
+
+    ``create_all`` only creates missing tables, so a database from an earlier
+    version would otherwise lack ``resumes.semantic_score``. Existing rows keep
+    NULL there until "Evaluate" fills them in; the dashboard handles that.
+    """
+    columns = {column["name"] for column in inspect(bind).get_columns("resumes")}
+    if "semantic_score" not in columns:
+        with bind.begin() as conn:
+            conn.execute(text("ALTER TABLE resumes ADD COLUMN semantic_score FLOAT"))
+        logger.info("[SCHEMA] Added resumes.semantic_score.")
 
 
 def ensure_schema() -> bool:
@@ -28,6 +45,7 @@ def ensure_schema() -> bool:
         if not _ready:
             try:
                 Base.metadata.create_all(bind=engine)  # creates missing tables; never alters existing ones
+                add_missing_columns(engine)
                 with SessionLocal() as db:
                     merge_duplicate_skills(db)
                 _ready = True

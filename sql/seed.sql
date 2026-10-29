@@ -53,8 +53,11 @@ CREATE TABLE IF NOT EXISTS resumes (
   uploaded_at  TIMESTAMPTZ DEFAULT now(),
   raw_text     TEXT,
   parsed_json  JSONB,                            -- {"parsed": {name,email,phone}, "skills": [...]}
-  embedding    JSONB
+  embedding    JSONB,
+  semantic_score DOUBLE PRECISION                -- (cos + 1) / 2 against the job; NULL until both embeddings exist
 );
+-- Databases created before semantic_score existed (the API also adds it at start-up).
+ALTER TABLE resumes ADD COLUMN IF NOT EXISTS semantic_score DOUBLE PRECISION;
 CREATE INDEX IF NOT EXISTS idx_resumes_job_id ON resumes (job_id);
 CREATE INDEX IF NOT EXISTS idx_resumes_candidate_id ON resumes (candidate_id);
 

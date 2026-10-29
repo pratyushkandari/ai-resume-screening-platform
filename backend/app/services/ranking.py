@@ -1,14 +1,18 @@
 """Candidate evaluation for a job: dashboard summary and persisted rankings.
 
 Both use ``ml_utils.score_candidates`` (one scoring implementation). Data is
-loaded with a constant number of queries regardless of the number of resumes.
+loaded with a constant number of queries regardless of the number of resumes,
+and without resume text or embeddings: each resume's semantic score is stored
+when it is computed, because loading 10,000 JSON embeddings took about 4 s.
 """
 
 from __future__ import annotations
 
 import logging
-from collections import Counter
+from collections import Counter, defaultdict
+from dataclasses import dataclass
 from datetime import datetime, timezone
+from statistics import mean
 from typing import Dict, List, Optional
 
 from sqlalchemy import func
@@ -17,10 +21,35 @@ from sqlalchemy.orm import Session, selectinload
 from .. import models
 from ..cache import CacheService, job_summary_key
 from ..config import settings
-from ..ml_utils import ResumeFeatures, embed_batch, embed_text, normalize_skill, score_candidates
+from ..ml_utils import (
+    STATUS_ACCEPTED,
+    ResumeFeatures,
+    embed_batch,
+    embed_text,
+    normalize_skill,
+    score_candidates,
+    stored_semantic_scores,
+)
 from ..observability import metrics
 
 logger = logging.getLogger("ranking")
+# The dashboard lists the best candidates only; totals still cover every applicant,
+# and GET /rankings returns the full list. Rendering 10,000 cards froze the browser.
+SUMMARY_TOP_CANDIDATES = 100
+# Display tier above the shortlist cut-off: on the evaluation set, scores from about
+# 0.80 up are mostly strong fits (grade 3).
+STRONG_FIT_SCORE = 0.80
+
+
+@dataclass(frozen=True)
+class ResumeRow:
+    """The fields of one resume that scoring and the dashboard need (no text, no embedding)."""
+
+    resume_id: int
+    candidate_id: Optional[int]
+    candidate_name: Optional[str]
+    filename: Optional[str]
+    features: ResumeFeatures
 
 
 def job_skill_names(db: Session, job: models.Job) -> List[str]:
@@ -35,29 +64,49 @@ def job_skill_names(db: Session, job: models.Job) -> List[str]:
     return list(dict.fromkeys(normalize_skill(l.skill.skill_name) for l in links if l.skill and l.skill.skill_name))
 
 
-def load_job_resumes(db: Session, job_id: int) -> List[models.Resume]:
-    """All resumes of a job with candidates and skills eagerly loaded (constant query count)."""
-    return (
-        db.query(models.Resume)
-        .options(
-            selectinload(models.Resume.candidate),
-            selectinload(models.Resume.resume_skills).selectinload(models.ResumeSkill.skill),
+def load_job_rows(db: Session, job_id: int) -> List[ResumeRow]:
+    """Every resume of a job as plain rows (three queries, no ORM objects), newest first.
+
+    Embeddings are loaded only for resumes without a stored semantic score: rows
+    from before the score was stored, or uploaded while the model was unavailable.
+    """
+    rows = (
+        db.query(
+            models.Resume.resume_id,
+            models.Resume.candidate_id,
+            models.Candidate.full_name,
+            models.Resume.filename,
+            models.Resume.semantic_score,
         )
+        .outerjoin(models.Candidate, models.Candidate.candidate_id == models.Resume.candidate_id)
         .filter(models.Resume.job_id == job_id)
         .order_by(models.Resume.uploaded_at.desc(), models.Resume.resume_id.desc())
         .all()
     )
-
-
-def _resume_skills(resume: models.Resume) -> List[str]:
-    """Skill names linked to a resume."""
-    return [link.skill.skill_name for link in resume.resume_skills if link.skill and link.skill.skill_name]
-
-
-def _evaluate(job: models.Job, skills: List[str], resumes: List[models.Resume]) -> List[Dict]:
-    """Score ``resumes`` against ``job`` with the shared ``score_candidates`` implementation."""
-    features = [ResumeFeatures(r.embedding, _resume_skills(r)) for r in resumes]
-    return score_candidates(job.embedding, skills, features)
+    skills: Dict[int, List[str]] = defaultdict(list)
+    skill_rows = (
+        db.query(models.ResumeSkill.resume_id, models.Skill.skill_name)
+        .join(models.Skill, models.Skill.skill_id == models.ResumeSkill.skill_id)
+        .join(models.Resume, models.Resume.resume_id == models.ResumeSkill.resume_id)
+        .filter(models.Resume.job_id == job_id)
+    )
+    for resume_id, skill_name in skill_rows:
+        skills[resume_id].append(skill_name)
+    unscored = dict(
+        db.query(models.Resume.resume_id, models.Resume.embedding)
+        .filter(models.Resume.job_id == job_id, models.Resume.semantic_score.is_(None))
+        .all()
+    )
+    return [
+        ResumeRow(
+            row.resume_id,
+            row.candidate_id,
+            row.full_name,
+            row.filename,
+            ResumeFeatures(unscored.get(row.resume_id), skills[row.resume_id], row.semantic_score),
+        )
+        for row in rows
+    ]
 
 
 def last_ranked_at(db: Session, job_id: int) -> Optional[datetime]:
@@ -76,7 +125,10 @@ def _iso(value: Optional[datetime]) -> Optional[str]:
 
 
 def build_summary(db: Session, job: models.Job) -> Dict:
-    """Dashboard payload: one entry per candidate (their best-scoring resume), sorted by score."""
+    """Dashboard payload: the best ``SUMMARY_TOP_CANDIDATES`` candidates plus totals over all of them.
+
+    Each candidate appears once, with their best-scoring resume.
+    """
     cache_key = job_summary_key(job.job_id)
     cached = CacheService.get(cache_key)
     if cached is not None:
@@ -86,19 +138,19 @@ def build_summary(db: Session, job: models.Job) -> Dict:
     metrics.inc("summary_cache_misses_total")
 
     skills = job_skill_names(db, job)
-    resumes = load_job_resumes(db, job.job_id)
-    evaluations = _evaluate(job, skills, resumes)
+    rows = load_job_rows(db, job.job_id)
+    evaluations = score_candidates(job.embedding, skills, [row.features for row in rows])
 
     best: Dict[int, Dict] = {}
-    for resume, ev in zip(resumes, evaluations, strict=True):
+    for row, ev in zip(rows, evaluations, strict=True):
         # Group by applicant; a resume without an applicant gets its own (negative) key.
-        key = resume.candidate_id if resume.candidate_id is not None else -resume.resume_id
+        key = row.candidate_id if row.candidate_id is not None else -row.resume_id
         entry = {
-            "candidate_id": resume.candidate_id,
-            "candidate_name": resume.candidate.full_name if resume.candidate else None,
-            "resume_id": resume.resume_id,
+            "candidate_id": row.candidate_id,
+            "candidate_name": row.candidate_name,
+            "resume_id": row.resume_id,
             # Stored as "<random12>_<original>"; show the original name.
-            "filename": resume.filename.split("_", 1)[-1] if resume.filename else None,
+            "filename": row.filename.split("_", 1)[-1] if row.filename else None,
             "semantic": ev["semantic"],
             "skill_score": ev["skill_score"],
             "score": ev["final_score"],
@@ -117,9 +169,10 @@ def build_summary(db: Session, job: models.Job) -> Dict:
     coverage = Counter(skill for c in candidates for skill in c["matched_skills"])
     applicant_skills = Counter()
     best_resume_ids = {c["resume_id"] for c in candidates}
-    for resume in resumes:
-        if resume.resume_id in best_resume_ids:
-            applicant_skills.update(set(normalize_skill(s) for s in _resume_skills(resume)))
+    for row in rows:
+        if row.resume_id in best_resume_ids:
+            applicant_skills.update(set(normalize_skill(s) for s in row.features.skills))
+    shortlisted = [c for c in candidates if c["status"] == STATUS_ACCEPTED]
 
     result = {
         "job_id": job.job_id,
@@ -127,8 +180,13 @@ def build_summary(db: Session, job: models.Job) -> Dict:
         "job_skills": skills,
         "job_skill_counts": [{"skill_name": s, "matches": coverage.get(s, 0)} for s in skills],
         "top_skills": [{"skill_name": s, "matches": n} for s, n in applicant_skills.most_common(10)],
-        "candidates": candidates,
-        "semantic_available": bool(job.embedding) and all(r.embedding for r in resumes),
+        "candidates": candidates[:SUMMARY_TOP_CANDIDATES],
+        "total_candidates": len(candidates),
+        "shortlisted_candidates": len(shortlisted),
+        "strong_fits": sum(c["score"] >= STRONG_FIT_SCORE for c in shortlisted),
+        "average_score": round(mean(c["score"] for c in candidates), 4) if candidates else 0.0,
+        "semantic_available": bool(job.embedding)
+        and all(row.features.semantic is not None or row.features.embedding for row in rows),
         "last_ranked_at": _iso(last_ranked_at(db, job.job_id)),
     }
     CacheService.set(cache_key, result, settings.summary_cache_ttl_seconds)
@@ -136,20 +194,34 @@ def build_summary(db: Session, job: models.Job) -> Dict:
     return result
 
 
-def backfill_embeddings(db: Session, job: models.Job, resumes: List[models.Resume]) -> int:
-    """Compute embeddings that are missing because the model was unavailable at upload time."""
+def backfill_semantic_scores(db: Session, job: models.Job) -> int:
+    """Fill in what was missing at upload time: embeddings and stored semantic scores.
+
+    Only resumes without a semantic score are loaded (with their text), so this is
+    cheap once a job is up to date. Returns how many embeddings were computed.
+    """
     filled = 0
     if not job.embedding:
         vector = embed_text(f"{job.title}\n{job.description or ''}")
         if vector is not None:
             job.embedding = vector
             filled += 1
-    missing = [r for r in resumes if not r.embedding and r.raw_text]
+    if not job.embedding:
+        return filled  # model still unavailable: scores stay neutral
+    pending = (
+        db.query(models.Resume)
+        .filter(models.Resume.job_id == job.job_id, models.Resume.semantic_score.is_(None))
+        .all()
+    )
+    missing = [r for r in pending if not r.embedding and r.raw_text]
     if missing:
         for resume, vector in zip(missing, embed_batch([r.raw_text for r in missing]), strict=True):
             if vector is not None:
                 resume.embedding = vector
                 filled += 1
+    for resume, score in zip(pending, stored_semantic_scores(job.embedding, [r.embedding for r in pending]), strict=True):
+        resume.semantic_score = score
+    db.flush()  # the session does not autoflush; the scoring query below must see these
     return filled
 
 
@@ -158,21 +230,21 @@ def rank_job(db: Session, job: models.Job) -> Dict:
     # Lock the job row (PostgreSQL) so two simultaneous "Evaluate" requests run one
     # after the other instead of colliding on the (job_id, resume_id) unique key.
     db.query(models.Job).filter(models.Job.job_id == job.job_id).with_for_update().one()
+    filled = backfill_semantic_scores(db, job)
     skills = job_skill_names(db, job)
-    resumes = load_job_resumes(db, job.job_id)
-    filled = backfill_embeddings(db, job, resumes)
-    evaluations = _evaluate(job, skills, resumes)
+    rows = load_job_rows(db, job.job_id)
+    evaluations = score_candidates(job.embedding, skills, [row.features for row in rows])
 
     now = datetime.now(timezone.utc)
     db.query(models.Ranking).filter(models.Ranking.job_id == job.job_id).delete(synchronize_session=False)
     db.add_all(
-        models.Ranking(job_id=job.job_id, resume_id=r.resume_id, score=ev["final_score"], status=ev["status"], created_at=now)
-        for r, ev in zip(resumes, evaluations, strict=True)
+        models.Ranking(job_id=job.job_id, resume_id=row.resume_id, score=ev["final_score"], status=ev["status"], created_at=now)
+        for row, ev in zip(rows, evaluations, strict=True)
     )
     db.commit()
     CacheService.delete(job_summary_key(job.job_id))
-    logger.info("Ranked %s resumes for job %s (backfilled %s embeddings)", len(resumes), job.job_id, filled)
-    return {"status": "done", "ranked": len(resumes), "ranked_at": now if resumes else None}
+    logger.info("Ranked %s resumes for job %s (backfilled %s embeddings)", len(rows), job.job_id, filled)
+    return {"status": "done", "ranked": len(rows), "ranked_at": now if rows else None}
 
 
 def list_rankings(db: Session, job_id: int) -> List[Dict]:
