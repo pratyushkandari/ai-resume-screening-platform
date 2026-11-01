@@ -1,0 +1,21 @@
+Siddharth Menon
+siddharth.menon@example.com | +91 98451 23987
+
+SUMMARY
+Site reliability and backend engineer with six years of experience running high-traffic APIs.
+
+EXPERIENCE
+Staff SRE, Quickride (2021 - Present)
+- Write and tune Python and Go services for the booking API (10,000 requests per second).
+- Operate PostgreSQL and Redis at scale: replication, failover drills and connection pooling.
+- Run Kubernetes on AWS, managed with Terraform; services ship as Docker images.
+- Lead on-call and post-incident reviews; cut p99 latency by 40% through profiling and caching.
+
+Backend Engineer, Zipline Foods (2018 - 2021)
+- Built Python REST APIs for orders and delivery tracking.
+
+SKILLS
+Python, Go, PostgreSQL, Redis, Kubernetes, AWS, Terraform, Docker, Linux, REST API
+
+EDUCATION
+B.Tech Computer Science, NIT Calicut, 2018

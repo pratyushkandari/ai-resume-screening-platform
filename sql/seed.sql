@@ -53,8 +53,11 @@ CREATE TABLE IF NOT EXISTS resumes (
   uploaded_at  TIMESTAMPTZ DEFAULT now(),
   raw_text     TEXT,
   parsed_json  JSONB,                            -- {"parsed": {name,email,phone}, "skills": [...]}
-  embedding    JSONB
+  embedding    JSONB,
+  semantic_score DOUBLE PRECISION                -- (cos + 1) / 2 against the job; NULL until both embeddings exist
 );
+-- Databases created before semantic_score existed (the API also adds it at start-up).
+ALTER TABLE resumes ADD COLUMN IF NOT EXISTS semantic_score DOUBLE PRECISION;
 CREATE INDEX IF NOT EXISTS idx_resumes_job_id ON resumes (job_id);
 CREATE INDEX IF NOT EXISTS idx_resumes_candidate_id ON resumes (candidate_id);
 
@@ -83,7 +86,7 @@ CREATE TABLE IF NOT EXISTS rankings (
   job_id     INTEGER REFERENCES jobs(job_id) ON DELETE CASCADE,
   resume_id  INTEGER REFERENCES resumes(resume_id) ON DELETE CASCADE,
   score      DOUBLE PRECISION NOT NULL,          -- composite score 0.0–1.0
-  status     TEXT DEFAULT 'pending',             -- 'accepted' (>= 0.60) | 'rejected'
+  status     TEXT DEFAULT 'pending',             -- 'accepted' (>= 0.74) | 'rejected'
   created_at TIMESTAMPTZ DEFAULT now(),
   CONSTRAINT uix_job_resume UNIQUE (job_id, resume_id)
 );

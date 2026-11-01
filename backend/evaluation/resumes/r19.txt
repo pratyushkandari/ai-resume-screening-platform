@@ -1,0 +1,21 @@
+Michael O'Brien
+michael.obrien@example.com | +353 87 123 4567
+
+SUMMARY
+Senior DevOps engineer with six years of experience running production platforms on AWS.
+
+EXPERIENCE
+Senior DevOps Engineer, Cloudharbor (2021 - Present)
+- Run 14 Kubernetes clusters on AWS EKS serving 120 microservices; led the upgrade to Kubernetes 1.29 with no downtime.
+- Wrote reusable Terraform modules for VPC, IAM and RDS used by every product team.
+- Built GitLab CI/CD pipelines that test, scan and deploy Docker images in under ten minutes.
+- Harden Linux hosts against CIS benchmarks, manage Prometheus and Grafana alerting and lead incident reviews.
+
+DevOps Engineer, Greenfield Payments (2018 - 2021)
+- Migrated services from EC2 shell scripts to containers and introduced infrastructure as code.
+
+SKILLS
+AWS, Kubernetes, Terraform, Docker, CI/CD, Linux, Prometheus, Grafana, Helm, on-call
+
+EDUCATION
+B.Sc. Computing, Trinity College Dublin, 2018

@@ -1,0 +1,21 @@
+Ishaan Rao
+ishaan.rao@example.com | +91 97400 11223
+
+SUMMARY
+Machine learning engineer with four years of experience training and deploying NLP models for search.
+
+EXPERIENCE
+Machine Learning Engineer, Findly Search (2022 - Present)
+- Fine-tune BERT-style transformer models in PyTorch for query classification and passage ranking.
+- Built the offline evaluation pipeline and the labelled test sets the team uses to approve model releases.
+- Pull training data with SQL from the warehouse and maintain the feature extraction jobs in Python.
+- Serve models in Docker containers behind an internal inference service handling 2,000 requests per second.
+
+Data Scientist, Textify Labs (2020 - 2022)
+- Built text classification models for support tickets with PyTorch and NLP preprocessing pipelines.
+
+SKILLS
+Python, PyTorch, NLP, transformers, machine learning, SQL, Docker, model evaluation
+
+EDUCATION
+M.Tech Computer Science, IIIT Hyderabad, 2020

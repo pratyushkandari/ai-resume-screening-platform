@@ -1,0 +1,21 @@
+Emily Chen
+emily.chen@example.com | +1 (206) 555-0198
+
+SUMMARY
+Senior frontend engineer with five years of experience building React applications that are fast, accessible and pleasant to maintain.
+
+EXPERIENCE
+Senior Frontend Engineer, Brightboard (2021 - Present)
+- Lead the React and TypeScript codebase, built on Next.js, for a project-management app with 200,000 monthly users.
+- Created the design-system component library (40 components) with CSS modules, documented in Storybook.
+- Fixed accessibility issues to reach WCAG 2.1 AA: semantic HTML, focus management and colour contrast.
+- Cut the JavaScript bundle by 35% with code splitting and improved Core Web Vitals on key pages.
+
+Frontend Engineer, Sparkline Media (2019 - 2021)
+- Built responsive pages in React consuming REST and GraphQL APIs; added Jest and Testing Library tests.
+
+SKILLS
+React, TypeScript, JavaScript, Next.js, CSS, HTML, REST API, GraphQL, Jest, accessibility, web performance
+
+EDUCATION
+B.S. Computer Science, University of Washington, 2019

@@ -24,6 +24,9 @@ ChartJS.register(
   Legend
 );
 
+// One line per candidate stops being readable (and fast) beyond a handful.
+const COVERAGE_CHART_CANDIDATES = 10;
+
 /** Draw a ✓ or ✕ on a small white circle; used as point markers in the coverage chart. */
 function renderMarkerCanvas(symbol, fillStyle) {
   const canvas = document.createElement("canvas");
@@ -51,16 +54,17 @@ function renderMarkerCanvas(symbol, fillStyle) {
 
 /**
  * Dashboard analytics for one job, computed only from the summary API response:
- * - bar: how many applicants have each required skill;
- * - doughnut: strong fits (≥75%), other shortlisted, under review;
- * - scatter: semantic fit vs. skill fit per applicant;
- * - line: which required skills each applicant covers (✓ / ✕).
+ * - bar: how many applicants have each required skill (all applicants);
+ * - doughnut: strong fits (≥80%), other shortlisted, under review (all applicants);
+ * - scatter: semantic fit vs. skill fit for the listed (top) candidates;
+ * - line: which required skills the top 10 candidates cover (✓ / ✕).
  *
  * @param {object} props
  * @param {{skill_name: string, matches: number}[]} props.jobSkillCounts - `summary.job_skill_counts`.
- * @param {object[]} props.candidates - `summary.candidates`.
+ * @param {object[]} props.candidates - `summary.candidates` (the best candidates, best first).
+ * @param {{all: number, shortlisted: number, strong: number}} props.totals - Counts over every applicant.
  */
-export default function Charts({ jobSkillCounts = [], candidates = [] }) {
+export default function Charts({ jobSkillCounts = [], candidates = [], totals = { all: 0, shortlisted: 0, strong: 0 } }) {
   const skillLabels = useMemo(
     () => jobSkillCounts.map((s) => s.skill_name || s.skill || "—"),
     [jobSkillCounts]
@@ -96,20 +100,16 @@ export default function Charts({ jobSkillCounts = [], candidates = [] }) {
     layout: { padding: { top: 8, bottom: 8 } },
   }), []);
 
-  // Tiers follow the API's own decision (status "accepted" = Shortlisted), so the
-  // chart can never disagree with the "Shortlisted" / "Under Review" badges.
-  const qualityBuckets = useMemo(() => {
-    const buckets = { high: 0, medium: 0, low: 0 };
-    (candidates || []).forEach((c) => {
-      if (c.status !== "accepted") buckets.low++;
-      else if ((c.score || 0) >= 0.75) buckets.high++;
-      else buckets.medium++;
-    });
-    return buckets;
-  }, [candidates]);
+  // Counts from the API over every applicant (status "accepted" = Shortlisted), so the
+  // chart agrees with the badges even when only the top candidates are listed.
+  const qualityBuckets = useMemo(() => ({
+    high: totals.strong,
+    medium: totals.shortlisted - totals.strong,
+    low: totals.all - totals.shortlisted,
+  }), [totals.all, totals.shortlisted, totals.strong]);
 
   const donutData = useMemo(() => ({
-    labels: ["Strong fit (≥75%)", "Shortlisted", "Under review"],
+    labels: ["Strong fit (≥80%)", "Shortlisted", "Under review"],
     datasets: [
       {
         data: [qualityBuckets.high, qualityBuckets.medium, qualityBuckets.low],
@@ -171,7 +171,7 @@ export default function Charts({ jobSkillCounts = [], candidates = [] }) {
   }), []);
 
   const lineData = useMemo(() => {
-    const datasets = (candidates || []).map((cand, idx) => {
+    const datasets = (candidates || []).slice(0, COVERAGE_CHART_CANDIDATES).map((cand, idx) => {
       const color = colorAt(idx);
       const data = (cand.coverage_vector || []).map((v) => (v ? 1 : 0));
       return {
@@ -229,7 +229,7 @@ export default function Charts({ jobSkillCounts = [], candidates = [] }) {
               Applicant Quality Breakdown
             </h4>
             <div style={{ width: "100%", height: 145 }}>
-              <Doughnut role="img" data={donutData} options={donutOptions} aria-label={`Doughnut chart: ${qualityBuckets.high} strong fits (75% or more), ${qualityBuckets.medium} other shortlisted, ${qualityBuckets.low} under review`} />
+              <Doughnut role="img" data={donutData} options={donutOptions} aria-label={`Doughnut chart: ${qualityBuckets.high} strong fits (80% or more), ${qualityBuckets.medium} other shortlisted, ${qualityBuckets.low} under review`} />
             </div>
           </div>
 
@@ -249,7 +249,7 @@ export default function Charts({ jobSkillCounts = [], candidates = [] }) {
           Candidate Coverage Vector Analysis
         </h4>
         <div style={{ color: "#64748b", marginBottom: 12, fontSize: 13 }}>
-          Multi-dimensional skill matrix verification. Hover coordinates to inspect matched and gap indicators.
+          Required skills covered by the top {Math.min(candidates.length, COVERAGE_CHART_CANDIDATES)} candidates. Hover a point to see the candidate.
         </div>
 
         {skillLabels.length && candidates.length ? (

@@ -1,0 +1,21 @@
+James Wilson
+james.wilson@example.com | +44 7700 900321
+
+SUMMARY
+Business analyst with three years of experience turning stakeholder questions into reports and requirements.
+
+EXPERIENCE
+Business Analyst, Kingsbridge Bank (2022 - Present)
+- Gather requirements from operations teams and write specifications for the reporting platform.
+- Build Power BI dashboards for branch performance and complaint volumes.
+- Write SQL queries to pull data and reconcile figures with finance.
+- Maintain Excel workbooks with pivot tables and lookups for monthly board packs.
+
+Graduate Analyst, Kingsbridge Bank (2021 - 2022)
+- Supported process mapping and user acceptance testing for a CRM rollout.
+
+SKILLS
+Excel, Power BI, SQL, requirements gathering, stakeholder reporting, Visio
+
+EDUCATION
+B.A. Business Management, University of Leeds, 2021

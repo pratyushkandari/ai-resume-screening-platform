@@ -1,0 +1,21 @@
+Daniel Okafor
+daniel.okafor@example.com | +44 7700 900481
+
+SUMMARY
+Backend developer with four years of experience writing Python services that other teams depend on. I like measuring things before optimising them.
+
+EXPERIENCE
+Backend Developer, Lumen Health (2022 - Present)
+- Build HTTP services in Python on an async web framework that return JSON to our mobile and web clients; about 900 requests per second at peak.
+- Tune the relational database behind them: read query plans, add composite indexes and remove N+1 access patterns, which halved median response time.
+- Added an in-memory key-value cache in front of the pricing lookups, cutting database load by two thirds.
+- Ship every service as a container image built in the pipeline, with health checks and structured logs.
+
+Software Developer, Brightline Insurance (2020 - 2022)
+- Wrote Python batch jobs and HTTP endpoints for policy quotes; added integration tests against a real database.
+
+SKILLS
+Python, asyncio, SQL, query optimisation, caching, containers, observability, pytest
+
+EDUCATION
+B.Eng. Software Engineering, University of Lagos, 2020

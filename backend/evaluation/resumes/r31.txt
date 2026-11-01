@@ -1,0 +1,21 @@
+Nikhil Bansal
+nikhil.bansal@example.com | +91 99100 22334
+
+SUMMARY
+Full-stack engineer with five years of experience shipping features end to end, from database to UI.
+
+EXPERIENCE
+Senior Software Engineer, Ledgerly (2022 - Present)
+- Build the frontend in React and TypeScript with responsive CSS and accessible HTML.
+- Build the backend REST API in Python with FastAPI, PostgreSQL and Redis caching.
+- Package and deploy both with Docker, and own performance budgets on both sides.
+- Led the invoicing feature: schema design, API, UI and rollout to 20,000 businesses.
+
+Software Engineer, Quickbill (2020 - 2022)
+- Built React screens and Python services for subscription billing.
+
+SKILLS
+React, TypeScript, JavaScript, CSS, HTML, Python, FastAPI, PostgreSQL, Redis, Docker, REST API
+
+EDUCATION
+B.Tech Computer Science, IIT Roorkee, 2020

@@ -1,0 +1,20 @@
+Vikram Singh
+vikram.singh@example.com | +91 99887 76655
+
+SUMMARY
+Angular developer with four years of experience building enterprise portals. I have no React experience yet, but strong TypeScript fundamentals.
+
+EXPERIENCE
+Frontend Developer, SecureLife Insurance (2021 - Present)
+- Build the customer insurance portal in Angular with TypeScript, RxJS and NgRx state management.
+- Integrate REST APIs for quotes, claims and payments; added retry and caching interceptors.
+- Write reusable form components with HTML and SCSS that meet the company accessibility checklist.
+
+Software Engineer, Infobyte Systems (2020 - 2021)
+- Maintained AngularJS screens and migrated two modules to Angular 12.
+
+SKILLS
+Angular, TypeScript, RxJS, NgRx, HTML, SCSS, REST APIs, Jasmine, Karma
+
+EDUCATION
+B.Tech Electronics, Punjab Engineering College, 2020

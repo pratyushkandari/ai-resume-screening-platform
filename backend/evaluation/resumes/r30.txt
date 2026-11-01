@@ -1,0 +1,20 @@
+Pooja Agarwal
+pooja.agarwal@example.com | +91 98110 55443
+
+SUMMARY
+Marketing analyst with three years of experience measuring campaign performance.
+
+EXPERIENCE
+Marketing Analyst, Trendify Fashion (2022 - Present)
+- Track campaign traffic and conversions in Google Analytics and report ROI by channel.
+- Build Tableau dashboards for the marketing team and monthly Excel reports for management.
+- Write basic SQL to pull order data for attribution analysis.
+
+Marketing Executive, Urban Bazaar (2021 - 2022)
+- Coordinated email campaigns and reported open and click rates.
+
+SKILLS
+Google Analytics, Tableau, Excel, SQL (basic), campaign analysis, attribution
+
+EDUCATION
+MBA Marketing, Symbiosis Institute of Business Management, 2021

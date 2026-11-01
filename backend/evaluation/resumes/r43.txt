@@ -1,0 +1,21 @@
+Elena Popescu
+elena.popescu@example.com | +40 721 123 456
+
+SUMMARY
+QA automation engineer with four years of experience. I have no experience with Kubernetes or Terraform.
+
+EXPERIENCE
+QA Automation Engineer, Carpathia Software (2021 - Present)
+- Build Selenium test suites in Java for a web banking app; 1,200 automated tests run every night.
+- Test REST API endpoints with Postman and automated collections.
+- Write Cypress tests in JavaScript for new frontend features.
+- Run the suites in Jenkins CI/CD pipelines on Linux test machines and triage failures.
+
+QA Engineer, Danube Apps (2020 - 2021)
+- Manual and exploratory testing of mobile apps; wrote test plans.
+
+SKILLS
+Selenium, Java, Postman, REST API testing, Cypress, JavaScript, Jenkins, CI/CD, Linux
+
+EDUCATION
+B.Sc. Computer Science, University of Bucharest, 2020

@@ -8,8 +8,14 @@ persisted rankings)::
 
     skill_score = |required ∩ found| / |required|
     semantic    = (cos(job, resume) + 1) / 2            # 0.5 when an embedding is missing
-    final       = min(1, 0.70·skill_score + 0.30·semantic + 0.05·[skill_score ≥ 0.70])
-    status      = "accepted" if final ≥ 0.60 else "rejected"
+    final       = 0.10·skill_score + 0.90·semantic
+    status      = "accepted" if final ≥ 0.74 else "rejected"
+
+The weights and the threshold come from ``python -m evaluation.evaluate``: on a graded
+set of 50 resumes and 5 jobs, cross-validated tuning chose a low skill weight because
+keyword matching is fooled by skill lists without real experience. Without embeddings
+the semantic part is neutral, so the order then follows skills but nobody reaches the
+shortlist threshold until "Evaluate" fills the embeddings in.
 """
 
 from __future__ import annotations
@@ -32,11 +38,10 @@ from .config import settings
 logger = logging.getLogger("ml")
 
 EMBEDDING_DIM = 384
-SKILL_WEIGHT = 0.70
-SEMANTIC_WEIGHT = 0.30
-COVERAGE_BONUS = 0.05
-BONUS_MIN_SKILL_SCORE = 0.70
-ACCEPT_THRESHOLD = 0.60
+# Tuned with evaluation/evaluate.py; the two weights must add up to 1.
+SKILL_WEIGHT = 0.10
+SEMANTIC_WEIGHT = 0.90
+ACCEPT_THRESHOLD = 0.74
 NEUTRAL_SEMANTIC = 0.50
 STATUS_ACCEPTED = "accepted"
 STATUS_REJECTED = "rejected"
@@ -427,10 +432,16 @@ def extract_skills(text: str, vocabulary: Iterable[str]) -> List[Tuple[str, floa
 # =============================================================================
 @dataclass(frozen=True)
 class ResumeFeatures:
-    """The two inputs scoring needs from a resume: its embedding and its skill names."""
+    """What scoring needs from a resume: its skill names and either its stored semantic score or its embedding."""
 
     embedding: Optional[Sequence[float]]
     skills: Sequence[str]
+    semantic: Optional[float] = None  # stored score; when set, the embedding is not needed
+
+
+def _comparable(job_embedding: Optional[Sequence[float]], embedding: Optional[Sequence[float]]) -> bool:
+    """True when both vectors exist and have the same length, so a cosine can be computed."""
+    return bool(job_embedding) and embedding is not None and len(embedding) == len(job_embedding)
 
 
 def semantic_scores(job_embedding: Optional[Sequence[float]], resume_embeddings: Sequence[Optional[Sequence[float]]]) -> np.ndarray:
@@ -441,7 +452,7 @@ def semantic_scores(job_embedding: Optional[Sequence[float]], resume_embeddings:
         return scores
     job = np.asarray(job_embedding, dtype=np.float32)
     job_norm = float(np.linalg.norm(job))
-    valid = [i for i, v in enumerate(resume_embeddings) if v is not None and len(v) == job.shape[0]]
+    valid = [i for i, v in enumerate(resume_embeddings) if _comparable(job_embedding, v)]
     if job_norm == 0.0 or not valid:
         return scores
     # Embeddings arrive as JSON lists; filling the (k, d) matrix from one flat stream is
@@ -456,15 +467,32 @@ def semantic_scores(job_embedding: Optional[Sequence[float]], resume_embeddings:
     return scores
 
 
+def stored_semantic_scores(
+    job_embedding: Optional[Sequence[float]], resume_embeddings: Sequence[Optional[Sequence[float]]]
+) -> List[Optional[float]]:
+    """Semantic scores to save on resume rows: ``None`` (fill in later) where a cosine is not possible."""
+    scores = semantic_scores(job_embedding, resume_embeddings).tolist()
+    return [score if _comparable(job_embedding, v) else None for score, v in zip(scores, resume_embeddings, strict=True)]
+
+
 def score_candidates(
     job_embedding: Optional[Sequence[float]], job_skills: Sequence[str], resumes: Sequence[ResumeFeatures]
 ) -> List[Dict]:
-    """Score many resumes against one job (one matrix-vector product for all cosines)."""
+    """Score many resumes against one job.
+
+    Stored semantic scores are used as they are; cosines are computed (one
+    matrix-vector product) only for resumes without one.
+    """
     required_unique = list(dict.fromkeys(normalize_skill(s) for s in job_skills if s and s.strip()))
     required_set = set(required_unique)
     n_required = len(required_unique)
     # Plain Python floats: per-element NumPy scalars are slow inside a Python loop.
-    semantic = semantic_scores(job_embedding, [r.embedding for r in resumes]).tolist()
+    semantic = [r.semantic for r in resumes]
+    missing = [i for i, value in enumerate(semantic) if value is None]
+    if missing:
+        computed = semantic_scores(job_embedding, [resumes[i].embedding for i in missing]).tolist()
+        for i, value in zip(missing, computed, strict=True):
+            semantic[i] = value
     results = []
     for features, sem in zip(resumes, semantic, strict=True):
         have = {normalize_skill(s) for s in features.skills if s and s.strip()}
@@ -475,8 +503,7 @@ def score_candidates(
         else:
             # A job without required skills cannot reward or penalise skills: stay neutral.
             matched_count, skill_score = 0, NEUTRAL_SEMANTIC
-        bonus = COVERAGE_BONUS if skill_score >= BONUS_MIN_SKILL_SCORE else 0.0
-        final = min(1.0, SKILL_WEIGHT * skill_score + SEMANTIC_WEIGHT * sem + bonus)
+        final = SKILL_WEIGHT * skill_score + SEMANTIC_WEIGHT * sem
         results.append(
             {
                 "semantic": round(sem, 4),

@@ -6,7 +6,16 @@ import random
 import numpy as np
 import pytest
 
-from app.ml_utils import NEUTRAL_SEMANTIC, ResumeFeatures, normalize_skill, score_candidates, semantic_scores
+from app.ml_utils import (
+    ACCEPT_THRESHOLD,
+    NEUTRAL_SEMANTIC,
+    SEMANTIC_WEIGHT,
+    SKILL_WEIGHT,
+    ResumeFeatures,
+    normalize_skill,
+    score_candidates,
+    semantic_scores,
+)
 
 
 def score_candidate(job_embedding, resume_embedding, job_skills, resume_skills):
@@ -31,20 +40,25 @@ def test_perfect_match():
     assert r["coverage_vector"] == [1, 1, 1] and r["coverage_percent"] == 100 and r["missing_skills"] == []
 
 
+def test_weights_and_threshold_are_consistent():
+    assert SKILL_WEIGHT + SEMANTIC_WEIGHT == pytest.approx(1.0)
+    assert 0 < ACCEPT_THRESHOLD < 1
+
+
 @pytest.mark.parametrize(
-    "matched, semantic_vec, expected_final, status",
+    "matched, semantic_vec, semantic, status",
     [
-        (7, E2, 0.7 * 1.0 + 0.3 * 0.5 + 0.05, "accepted"),    # full coverage, unrelated text
-        (5, E2, 0.7 * 5 / 7 + 0.3 * 0.5 + 0.05, "accepted"),  # 71% coverage -> bonus applies
-        (4, E1, 0.7 * 4 / 7 + 0.3 * 1.0, "accepted"),         # 57% + perfect semantics
-        (4, E2, 0.7 * 4 / 7 + 0.3 * 0.5, "rejected"),         # 57% + unrelated -> 0.55
-        (0, E1, 0.3, "rejected"),
+        (7, E1, 1.0, "accepted"),  # every skill and the same meaning as the job
+        (0, E1, 1.0, "accepted"),  # no listed keywords, but the text matches the job
+        (7, E2, 0.5, "rejected"),  # every keyword listed, unrelated text (keyword stuffing)
+        (4, E2, 0.5, "rejected"),
     ],
 )
-def test_formula_and_threshold(matched, semantic_vec, expected_final, status):
+def test_formula_and_threshold(matched, semantic_vec, semantic, status):
     required = ["python", "sql", "fastapi", "docker", "pytorch", "kubernetes", "aws"]
     r = score_candidate(E1, semantic_vec, required, required[:matched])
-    assert r["final_score"] == pytest.approx(min(1.0, expected_final), abs=1e-4)
+    assert r["semantic"] == semantic
+    assert r["final_score"] == pytest.approx(SKILL_WEIGHT * matched / 7 + SEMANTIC_WEIGHT * semantic, abs=1e-4)
     assert r["status"] == status
 
 
@@ -82,12 +96,12 @@ def _reference_score(job_embedding, job_skills, features):
         semantic = min(1.0, max(0.0, (dot / (norm_job * norm_vec) + 1) / 2))
     matched = [s for s in required if s in have]
     skill_score = len(matched) / len(required) if required else NEUTRAL_SEMANTIC
-    final = min(1.0, 0.7 * skill_score + 0.3 * semantic + (0.05 if skill_score >= 0.7 else 0.0))
+    final = SKILL_WEIGHT * skill_score + SEMANTIC_WEIGHT * semantic
     return {
         "semantic": semantic,
         "skill_score": round(skill_score, 4),
         "final_score": final,
-        "status": "accepted" if final >= 0.6 else "rejected",
+        "status": "accepted" if final >= ACCEPT_THRESHOLD else "rejected",
         "matched_skills": sorted(matched),
         "missing_skills": [s for s in required if s not in have],
         "coverage_vector": [1 if s in have else 0 for s in required],

@@ -1,0 +1,20 @@
+Brian Murphy
+brian.murphy@example.com | +1 (617) 555-0133
+
+SUMMARY
+AI-savvy enterprise sales executive with six years of experience selling SaaS analytics software.
+
+EXPERIENCE
+Enterprise Account Executive, Insightly Cloud (2021 - Present)
+- Exceeded annual quota four years running and closed the company's largest deal ($1.4M ARR).
+- Manage relationships with 30 enterprise accounts in finance and healthcare.
+- Run product demos of dashboards and forecasting features with the solutions team.
+
+Account Executive, DataPoint Systems (2019 - 2021)
+- Built a pipeline of mid-market customers through outbound prospecting.
+
+SKILLS
+Machine Learning, NLP, PyTorch, SQL, Python, Tableau, Excel, Statistics, negotiation, Salesforce
+
+EDUCATION
+B.A. Communications, Boston University, 2019

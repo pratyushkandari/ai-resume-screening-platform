@@ -1,0 +1,20 @@
+Carlos Mendes
+carlos.mendes@example.com | +55 11 91234 5678
+
+SUMMARY
+Mobile developer with three years of experience shipping React Native apps to iOS and Android.
+
+EXPERIENCE
+Mobile Developer, FitPulse (2022 - Present)
+- Build the fitness tracking app in React Native with TypeScript; 4.7-star rating and 300,000 installs.
+- Share JavaScript business logic between the mobile app and a small React web dashboard for coaches.
+- Integrate REST APIs, offline sync and push notifications; manage App Store and Play Store releases.
+
+Junior Developer, AppForge (2021 - 2022)
+- Built screens for client apps in React Native and fixed crash reports.
+
+SKILLS
+React Native, React, TypeScript, JavaScript, REST APIs, Redux, Expo, app store releases
+
+EDUCATION
+B.S. Information Systems, University of Sao Paulo, 2021

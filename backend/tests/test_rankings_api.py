@@ -5,7 +5,9 @@ from datetime import datetime, timedelta
 import pytest
 from sqlalchemy import event
 
+from app import models
 from app.db import engine
+from app.services import ranking
 from tests.conftest import create_job, upload_text
 
 STRONG = "Alex Strong\nalex@x.com\nPython, Docker, SQL and FastAPI engineer building APIs."
@@ -41,8 +43,11 @@ def test_summary_ranks_candidates(client, job, hr):
     assert r.headers["X-Cache"] == "MISS"  # Redis unreachable in tests
     assert [c["candidate_name"] for c in body["candidates"]] == ["Alex Strong", "Bea Weak"]
     top = body["candidates"][0]
-    assert top["status"] == "accepted" and top["skill_score"] == 1.0 and top["filename"] == "resume.txt"
-    assert body["candidates"][1]["status"] == "rejected"
+    assert top["skill_score"] == 1.0 and top["filename"] == "resume.txt"
+    # Without embeddings the semantic part is neutral (0.5): skills still decide the order,
+    # but nobody reaches the shortlist cut-off until "Evaluate" fills the embeddings in.
+    assert top["semantic"] == 0.5 and top["score"] == pytest.approx(0.55)
+    assert [c["status"] for c in body["candidates"]] == ["rejected", "rejected"]
     assert body["job_skills"] == ["python", "docker", "sql", "fastapi"]
     assert {s["skill_name"]: s["matches"] for s in body["job_skill_counts"]} == {"python": 1, "docker": 1, "sql": 1, "fastapi": 1}
     assert body["semantic_available"] is False and body["last_ranked_at"] is None
@@ -80,6 +85,17 @@ def test_rank_saves_snapshot_and_backfills_embeddings(client, job, hr, fake_mode
     assert len(client.get(f"/api/jobs/{job['job_id']}/rankings", headers=hr["headers"]).json()) == 2
 
 
+def test_saved_rankings_break_ties_like_the_dashboard(client, hr):
+    job = create_job(client, hr["headers"])
+    for name in ("Ann Equal", "Ben Equal", "Cat Equal"):
+        upload_text(client, hr["headers"], job["job_id"], f"{name}\nPython, Docker, SQL and FastAPI engineer.")
+    client.post(f"/api/jobs/{job['job_id']}/rank", headers=hr["headers"])
+    summary = client.get(f"/api/jobs/{job['job_id']}/summary", headers=hr["headers"]).json()["candidates"]
+    rows = client.get(f"/api/jobs/{job['job_id']}/rankings", headers=hr["headers"]).json()
+    assert len({c["score"] for c in summary}) == 1  # a three-way tie
+    assert [r["resume_id"] for r in rows] == [c["resume_id"] for c in summary]
+
+
 def test_last_ranked_at_carries_a_time_zone(client, job, hr):
     # Without a zone, browsers read the timestamp as local time and show the wrong hour.
     client.post(f"/api/jobs/{job['job_id']}/rank", headers=hr["headers"])
@@ -106,9 +122,75 @@ def test_summary_uses_constant_number_of_queries(client, hr, candidate):
         return len(statements)
 
     for i in range(3):
-        upload_text(client, candidate["headers"], job["job_id"], f"Person {i} Name\np{i}@x.com\nPython and SQL developer here.")
+        assert upload_text(client, candidate["headers"], job["job_id"], f"Person {i} Name\np{i}@x.com\nPython and SQL developer here.").status_code == 201
     few = count_summary_queries()
     for i in range(3, 15):
-        upload_text(client, candidate["headers"], job["job_id"], f"Person {i} Name\np{i}@x.com\nPython and SQL developer here.")
+        assert upload_text(client, candidate["headers"], job["job_id"], f"Person {i} Name\np{i}@x.com\nPython and SQL developer here.").status_code == 201
     many = count_summary_queries()
     assert few == many <= 10
+
+
+def test_uploads_store_the_semantic_score_once_embeddings_exist(client, hr, candidate, db, fake_model):
+    job = create_job(client, hr["headers"])
+    resume_id = upload_text(client, candidate["headers"], job["job_id"], STRONG).json()["resume_id"]
+    resume = db.get(models.Resume, resume_id)
+    assert resume.embedding is not None and 0.0 <= resume.semantic_score <= 1.0
+
+
+def test_evaluate_fills_in_scores_missing_at_upload(client, job, hr, db, fake_model):
+    # The `job` fixture uploaded without a model: no embeddings and no stored scores yet.
+    assert all(r.semantic_score is None for r in db.query(models.Resume))
+    client.post(f"/api/jobs/{job['job_id']}/rank", headers=hr["headers"])
+    db.expire_all()
+    assert all(r.semantic_score is not None for r in db.query(models.Resume))
+
+
+def test_summary_reads_no_resume_text_or_embeddings_once_scores_are_stored(client, hr, candidate, db, fake_model):
+    job = create_job(client, hr["headers"])
+    upload_text(client, candidate["headers"], job["job_id"], STRONG)
+    upload_text(client, hr["headers"], job["job_id"], WEAK)
+    rows = ranking.load_job_rows(db, job["job_id"])
+    assert len(rows) == 2 and all(r.features.semantic is not None and r.features.embedding is None for r in rows)
+    statements = []
+
+    def listener(_conn, _cursor, statement, *_args):
+        """SQLAlchemy event hook: record one executed statement."""
+        statements.append(statement)
+
+    event.listen(engine, "before_cursor_execute", listener)
+    try:
+        assert client.get(f"/api/jobs/{job['job_id']}/summary", headers=hr["headers"]).status_code == 200
+    finally:
+        event.remove(engine, "before_cursor_execute", listener)
+    assert not any("raw_text" in s or "parsed_json" in s for s in statements)
+
+
+def test_rows_without_a_stored_score_are_still_scored_from_embeddings(client, hr, candidate, db, fake_model):
+    # Databases from before semantic_score existed have embeddings but NULL scores.
+    job = create_job(client, hr["headers"])
+    upload_text(client, candidate["headers"], job["job_id"], STRONG)
+    upload_text(client, hr["headers"], job["job_id"], WEAK)
+    url = f"/api/jobs/{job['job_id']}/summary"
+    stored = client.get(url, headers=hr["headers"]).json()
+    db.query(models.Resume).update({models.Resume.semantic_score: None})
+    db.commit()
+    legacy = client.get(url, headers=hr["headers"]).json()
+    assert [c["semantic"] for c in legacy["candidates"]] == [c["semantic"] for c in stored["candidates"]]
+    assert legacy["semantic_available"] is True
+
+
+def test_summary_lists_top_candidates_with_totals_over_everyone(client, hr, candidate, monkeypatch):
+    monkeypatch.setattr(ranking, "SUMMARY_TOP_CANDIDATES", 2)
+    job = create_job(client, hr["headers"])
+    upload_text(client, hr["headers"], job["job_id"], STRONG)
+    upload_text(client, hr["headers"], job["job_id"], WEAK)
+    upload_text(client, candidate["headers"], job["job_id"], "Casey Candidate\nPython developer with SQL experience.")
+    body = client.get(f"/api/jobs/{job['job_id']}/summary", headers=hr["headers"]).json()
+    assert len(body["candidates"]) == 2 and body["total_candidates"] == 3
+    assert body["candidates"][0]["candidate_name"] == "Alex Strong"
+    client.post(f"/api/jobs/{job['job_id']}/rank", headers=hr["headers"])
+    every_score = [r["score"] for r in client.get(f"/api/jobs/{job['job_id']}/rankings", headers=hr["headers"]).json()]
+    assert len(every_score) == 3  # /rankings keeps the full list
+    assert body["average_score"] == pytest.approx(sum(every_score) / 3, abs=1e-4)
+    # No embeddings in tests, so nobody reaches the shortlist cut-off.
+    assert body["shortlisted_candidates"] == body["strong_fits"] == 0

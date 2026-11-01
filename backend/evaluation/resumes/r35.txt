@@ -1,0 +1,21 @@
+David Cohen
+david.cohen@example.com | +972 52 123 4567
+
+SUMMARY
+Data engineer with four years of experience building reliable data pipelines.
+
+EXPERIENCE
+Data Engineer, Mapleton Insurance (2022 - Present)
+- Build batch pipelines with Apache Spark and Airflow that load 2 TB a day into Redshift.
+- Store raw data in AWS S3 and catalogue it with Glue; wrote data quality checks for every table.
+- Write Python and SQL transformations and run pipeline jobs in Docker.
+- Maintain a PostgreSQL metadata database for pipeline runs.
+
+Data Engineer, Startbit (2020 - 2022)
+- Moved cron-based ETL scripts to Airflow and added alerting.
+
+SKILLS
+Python, SQL, Spark, Airflow, AWS, Docker, PostgreSQL, Redshift
+
+EDUCATION
+B.Sc. Computer Science, Tel Aviv University, 2020

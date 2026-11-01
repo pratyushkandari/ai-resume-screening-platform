@@ -1,0 +1,22 @@
+Arjun Mehta
+arjun.mehta@example.com | +91 98201 44317
+
+SUMMARY
+Backend engineer with six years of experience building payment and order APIs in Python. I care about predictable latency, clean data models and services that are easy to operate at 3 a.m.
+
+EXPERIENCE
+Senior Backend Engineer, PayLedger Technologies (2021 - Present)
+- Built the settlement REST API in FastAPI that processes 1.2 million transactions a day with p95 latency under 80 ms.
+- Redesigned PostgreSQL schemas and indexes for the ledger; cut the slowest report query from 9 s to 400 ms.
+- Added a Redis cache for merchant configuration, removing 70% of database reads.
+- Own the service on-call rotation; wrote runbooks and Grafana alerts.
+
+Backend Engineer, CartNest (2018 - 2021)
+- Developed order and inventory services in Python, packaged with Docker and deployed to AWS.
+- Introduced contract tests for the public REST API used by 40 partner stores.
+
+SKILLS
+Python, FastAPI, PostgreSQL, Redis, Docker, REST API design, SQLAlchemy, pytest, Grafana, AWS
+
+EDUCATION
+B.Tech in Computer Science, VIT Vellore, 2018

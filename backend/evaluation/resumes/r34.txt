@@ -1,0 +1,21 @@
+Ananya Krishnan
+ananya.krishnan@example.com | +91 98860 99887
+
+SUMMARY
+Senior data scientist with five years of experience in experimentation, analytics and NLP.
+
+EXPERIENCE
+Senior Data Scientist, VoiceBox CX (2021 - Present)
+- Built PyTorch NLP models that tag customer feedback by topic and sentiment, deployed together with the engineering team.
+- Design experiments and analyse them with sound statistics; advise product teams on sample sizes and pitfalls.
+- Query data with SQL and analyse it in Python with pandas.
+- Build Tableau dashboards that leadership uses in weekly reviews.
+
+Data Scientist, Insightful Labs (2019 - 2021)
+- Built machine learning models for lead scoring and churn.
+
+SKILLS
+Python, pandas, SQL, statistics, PyTorch, NLP, machine learning, Tableau, experimentation
+
+EDUCATION
+M.Sc. Data Science, IISc Bangalore, 2019

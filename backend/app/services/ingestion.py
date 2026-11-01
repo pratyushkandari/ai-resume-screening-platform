@@ -22,7 +22,15 @@ from .. import models
 from ..auth import ROLE_CANDIDATE, get_owned_job
 from ..cache import CacheService, job_summary_key
 from ..config import settings
-from ..ml_utils import DocumentError, check_file_signature, embed_batch, extract_skills, extract_text, parse_contacts
+from ..ml_utils import (
+    DocumentError,
+    check_file_signature,
+    embed_batch,
+    extract_skills,
+    extract_text,
+    parse_contacts,
+    stored_semantic_scores,
+)
 from ..schemas import ParsedResume, ResumeUploadResult
 from .skills import get_or_create_skills, load_skill_index
 
@@ -177,6 +185,8 @@ def process_uploads(db: Session, job: models.Job, uploads: List[StoredUpload], u
     readable = [i for i, t in enumerate(texts) if t is not None]
     embeddings = embed_batch([texts[i] for i in readable])
     embedding_by_index = dict(zip(readable, embeddings, strict=True))
+    # Score against the job once now, so the dashboard never has to load embeddings.
+    semantic_by_index = dict(zip(readable, stored_semantic_scores(job.embedding, embeddings), strict=True))
     vocabulary = load_skill_index(db)
 
     for i in readable:
@@ -197,6 +207,7 @@ def process_uploads(db: Session, job: models.Job, uploads: List[StoredUpload], u
                     raw_text=text,
                     parsed_json={"parsed": contacts, "skills": skills},
                     embedding=embedding_by_index.get(i),
+                    semantic_score=semantic_by_index.get(i),
                 )
                 db.add(resume)
                 for skill in get_or_create_skills(db, skills, vocabulary):

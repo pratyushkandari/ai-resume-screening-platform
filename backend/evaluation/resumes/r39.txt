@@ -1,0 +1,20 @@
+Tanya Kapoor
+tanya.kapoor@example.com | +91 98100 67890
+
+SUMMARY
+Marketing coordinator with three years of experience running social media campaigns and events.
+
+EXPERIENCE
+Marketing Coordinator, Bloom Lifestyle (2022 - Present)
+- Plan and schedule Instagram and LinkedIn campaigns; grew followers by 35% in a year.
+- Organise product launch events and coordinate with venues, printers and influencers.
+- Write the monthly customer newsletter and track open rates.
+
+Marketing Assistant, Spice Route Events (2021 - 2022)
+- Supported event logistics and vendor payments.
+
+SKILLS
+Python, FastAPI, PostgreSQL, Redis, Docker, REST API, React, TypeScript, Kubernetes, AWS, Terraform, SQL, Tableau, PyTorch, NLP, social media marketing, event planning, copywriting
+
+EDUCATION
+BBA, Delhi University, 2021

@@ -1,0 +1,21 @@
+Mateo Rossi
+mateo.rossi@example.com | +39 333 123 4567
+
+SUMMARY
+PhD researcher in deep learning for computer vision, with publications on self-supervised representation learning.
+
+EXPERIENCE
+Doctoral Researcher, Politecnico di Milano (2021 - Present)
+- Train vision transformers and convolutional networks in Torch and JAX on multi-GPU clusters.
+- Published three papers (a CVPR workshop and ECCV) on self-supervised pretraining for medical images.
+- Maintain the lab's training code and experiment tracking.
+
+Research Intern, VisionLab Torino (2020)
+- Implemented data augmentation baselines for object detection experiments.
+
+SKILLS
+Python, Torch, JAX, deep learning, computer vision, CUDA, LaTeX
+
+EDUCATION
+PhD (in progress), Computer Engineering, Politecnico di Milano
+M.Sc. Computer Engineering, Politecnico di Milano, 2020

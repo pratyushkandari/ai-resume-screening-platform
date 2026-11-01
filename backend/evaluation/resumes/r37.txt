@@ -1,0 +1,21 @@
+Julia Novak
+julia.novak@example.com | +420 601 234 567
+
+SUMMARY
+Analytics engineer with three years of experience building trustworthy data models for analysts.
+
+EXPERIENCE
+Analytics Engineer, Prague Payments (2022 - Present)
+- Build dbt models in SQL on top of the warehouse, with tests that catch broken data before analysts do.
+- Write Python with pandas for data checks and one-off analyses.
+- Maintain Tableau data sources and help analysts build dashboards.
+- Schedule jobs in Airflow and document every model.
+
+Data Analyst, Czechia Telecom (2021 - 2022)
+- Built SQL reports and Excel dashboards for the customer care team.
+
+SKILLS
+SQL, dbt, Python, pandas, Tableau, Airflow, Excel, data quality
+
+EDUCATION
+M.Sc. Informatics, Charles University, 2021

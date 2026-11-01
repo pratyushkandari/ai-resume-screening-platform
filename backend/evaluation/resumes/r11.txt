@@ -1,0 +1,21 @@
+Hannah Kim
+hannah.kim@example.com | +82 10 1234 5678
+
+SUMMARY
+Frontend developer with two years of experience building Vue.js applications.
+
+EXPERIENCE
+Frontend Developer, Seoul Mobility (2023 - Present)
+- Build the booking dashboard for a scooter-sharing service in Vue.js 3 with Vuex.
+- Integrate the REST API for rides, payments and support tickets.
+- Write responsive layouts with HTML, CSS and Tailwind so the app stays usable on small phones.
+- Wrote unit tests with Vitest for the pricing components.
+
+Frontend Intern, Daon Commerce (2022 - 2023)
+- Fixed UI bugs in a JavaScript storefront and built small CSS animations.
+
+SKILLS
+Vue.js, Vuex, JavaScript, HTML, CSS, Tailwind, REST API, Vitest
+
+EDUCATION
+B.S. Computer Science, Korea University, 2022

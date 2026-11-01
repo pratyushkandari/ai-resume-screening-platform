@@ -1,0 +1,20 @@
+Kavya Patel
+kavya.patel@example.com | +91 97240 56789
+
+SUMMARY
+Final-year computer science student looking for a software engineering internship or graduate role.
+
+EXPERIENCE
+Web Development Intern, Pixelwave Studio (2025)
+- Two-month summer internship fixing UI bugs and building a contact form with React.
+
+PROJECTS
+- To-do app in React with local storage and responsive CSS.
+- Hackathon project: a small Flask API in Python that recommends study groups; the team placed second.
+
+SKILLS
+Python, SQL, React, JavaScript, HTML, CSS, Flask, data structures and algorithms, Git
+
+EDUCATION
+B.Tech Computer Science (final year), Nirma University, expected 2026
+Coursework: data structures, database systems, operating systems

@@ -20,6 +20,7 @@ os.environ["JWT_SECRET_KEY"] = secrets.token_urlsafe(32)
 os.environ["EMBEDDING_MODEL"] = "none"
 os.environ["REDIS_URL"] = "redis://127.0.0.1:1/0"
 os.environ["REQUIRE_EMBEDDING_MODEL"] = "false"
+os.environ["UPLOAD_RATE_LIMIT_PER_MINUTE"] = "0"  # the rate-limit test sets its own limit
 
 import numpy as np  # noqa: E402
 import pytest  # noqa: E402

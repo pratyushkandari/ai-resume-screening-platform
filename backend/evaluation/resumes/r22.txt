@@ -1,0 +1,20 @@
+Thomas Becker
+thomas.becker@example.com | +49 170 9876543
+
+SUMMARY
+Linux system administrator with seven years of experience keeping on-premises infrastructure healthy.
+
+EXPERIENCE
+Senior System Administrator, Hanse Logistik (2019 - Present)
+- Administer 250 Linux servers in two data centres: patching, backups, storage and networking.
+- Automated configuration with Ansible playbooks and Bash scripts, cutting server setup from a day to an hour.
+- Run a few internal tools in Docker containers on a single host.
+
+System Administrator, Stadtwerke IT (2017 - 2019)
+- Managed Debian and CentOS servers, firewalls and VPN access.
+
+SKILLS
+Linux, Bash, Ansible, networking, backups, Docker (basic), Nagios
+
+EDUCATION
+Certified IT Specialist for System Integration, IHK Hamburg, 2017

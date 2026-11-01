@@ -4,6 +4,24 @@ All notable changes to this project are listed here.
 
 ## Unreleased
 
+### Added
+- Ranking evaluation: 5 jobs, 50 resumes and 250 graded (job, resume) pairs in
+  `backend/evaluation/`, NDCG@10 and Precision@5, and `make eval`, which compares
+  skills-only, semantic-only, the previous weights and cross-validated tuned weights.
+- `python manage.py seed-load-test` seeds a job with generated resumes through the real
+  ingestion code, and `loadtest/dashboard.js` is a k6 test of the dashboard endpoint.
+- The dashboard summary returns `total_candidates`, `shortlisted_candidates`,
+  `strong_fits` and `average_score`, counted over every applicant.
+
+### Changed
+- Scoring weights tuned on the evaluation set: `0.10 × skill + 0.90 × semantic`,
+  shortlisted from 0.74, no coverage bonus (was `0.7 × skill + 0.3 × semantic`,
+  +0.05 bonus, 0.60). On held-out resumes Precision@5 went from 0.88 to 0.96 and
+  shortlist F1 from 0.74 to 0.82; keyword-stuffed resumes no longer reach the top 5.
+- The summary lists the best 100 candidates instead of all of them (`/rankings` still
+  has every resume). The dashboard's counts and doughnut chart use the totals, and the
+  coverage chart shows the top 10.
+
 ### Security
 - Recruiters can only upload resumes to jobs they created (403 otherwise). Their
   uploads no longer rename an applicant profile that other jobs share.
@@ -27,6 +45,8 @@ All notable changes to this project are listed here.
   keyed by resume. The candidate job list has loading and error states too.
 - The comparison dialog's stylesheet no longer restyles every skill chip on the dashboard.
 - The "View Fit" dialog no longer scrolls sideways on phones.
+- Saved rankings listed equal scores in insertion order and the dashboard by resume id,
+  so the two disagreed on ties. Both now break ties by resume id.
 
 ### Accessibility
 - Visible keyboard focus on the sign-in inputs.
@@ -36,6 +56,9 @@ All notable changes to this project are listed here.
   Position" moves focus to the form, and Space on the upload drop zone no longer scrolls.
 
 ### Performance
+- Each resume stores its semantic score, so the dashboard no longer loads and decodes
+  every embedding. With 10,000 applicants an uncached request went from 13.2 s to 1.1 s
+  (median), and the response from 3.3 MB to 34 KB; the page no longer freezes.
 - `score_candidates` is about 1.6x faster (10,000 applicants: 240 ms to 146 ms on one
   core). Skill names are normalized through a cache, and embeddings are copied into the
   NumPy matrix with `np.fromiter`. Results are unchanged.
@@ -48,6 +71,10 @@ All notable changes to this project are listed here.
 ### Upgrade notes
 - If `./.env` was copied from an older `.env.example`, delete its
   `APP_ENV=development` and `REQUIRE_EMBEDDING_MODEL=false` lines and restart the stack.
+- `resumes.semantic_score` is added at start-up. Click **Evaluate Candidates** once per
+  job to store the scores of existing resumes.
+- Scores and shortlists change with the new weights; run **Evaluate Candidates** to
+  refresh saved rankings.
 
 ## 3.1.0 (2026-10-24)
 

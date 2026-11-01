@@ -104,6 +104,11 @@ docker image prune -f               # optional: remove old image layers
 
 Data in the `pgdata` and `uploads` volumes is kept across rebuilds.
 
+The version that stores a semantic score per resume adds the `resumes.semantic_score`
+column itself at start-up. Existing resumes are still scored from their embeddings
+until the score is stored, so the dashboard stays correct. To store it (and make large
+dashboards fast), click **Evaluate Candidates** once per job.
+
 ## 5. Upgrading an instance that runs version 2.x (commit `c97e84d` or earlier)
 
 Version 3 changed the Compose file. Do these steps once, in this order:

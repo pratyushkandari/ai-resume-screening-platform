@@ -1,0 +1,21 @@
+Kenji Tanaka
+kenji.tanaka@example.com | +81 90 1234 5678
+
+SUMMARY
+Machine learning engineer with five years of experience on recommendation and ranking systems in production.
+
+EXPERIENCE
+Senior ML Engineer, Mercato Japan (2021 - Present)
+- Build two-tower retrieval and ranking models in PyTorch for product recommendations serving 8 million users.
+- Own feature pipelines in Python and SQL, and the A/B tests that decide model launches (+4.2% click-through).
+- Deploy models with Docker to the serving platform and monitor drift and latency.
+- Added NLP query understanding (spelling correction, category prediction) to search.
+
+ML Engineer, Shinkai Media (2019 - 2021)
+- Trained article recommendation models and built the offline evaluation dashboard.
+
+SKILLS
+Python, PyTorch, machine learning, recommendation systems, SQL, Docker, NLP, A/B testing
+
+EDUCATION
+M.S. Information Science, University of Tokyo, 2019

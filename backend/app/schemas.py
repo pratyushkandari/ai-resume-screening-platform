@@ -96,7 +96,7 @@ class SkillCount(BaseModel):
 class CandidateSummary(BaseModel):
     """One candidate on the dashboard (their best-scoring resume for this job).
 
-    ``score`` = 0.7 x ``skill_score`` + 0.3 x ``semantic`` (+0.05 bonus), capped at 1.
+    ``score`` = 0.1 x ``skill_score`` + 0.9 x ``semantic``; ``status`` is "accepted" from 0.74.
     ``coverage_vector`` has one 1/0 entry per required skill, in ``job_skills`` order.
     """
 
@@ -122,6 +122,12 @@ class JobSummaryOut(BaseModel):
     job_skills: List[str] = Field(default_factory=list)
     job_skill_counts: List[SkillCount] = Field(default_factory=list)
     top_skills: List[SkillCount] = Field(default_factory=list, description="Most common skills among this job's applicants")
-    candidates: List[CandidateSummary] = Field(default_factory=list)
+    candidates: List[CandidateSummary] = Field(
+        default_factory=list, description="The best candidates, highest score first (at most 100; GET /rankings has all)"
+    )
+    total_candidates: int = Field(0, description="Applicants for this job, each counted once")
+    shortlisted_candidates: int = Field(0, description="Applicants whose status is accepted")
+    strong_fits: int = Field(0, description="Shortlisted applicants scoring 0.80 or more")
+    average_score: float = Field(0.0, description="Mean score over all applicants")
     semantic_available: bool = Field(description="False if any score used the neutral 0.5 semantic value because an embedding was missing")
     last_ranked_at: Optional[datetime] = None

@@ -1,0 +1,20 @@
+Laura Schmidt
+laura.schmidt@example.com | +49 160 5554433
+
+SUMMARY
+Full-stack JavaScript developer with three years of experience in Node.js and React.
+
+EXPERIENCE
+Full-Stack Developer, Bookly Berlin (2022 - Present)
+- Build booking features with React on the frontend and Node.js with Express on the backend.
+- Design REST APIs and MongoDB collections for venues, schedules and payments.
+- Write responsive layouts in CSS and HTML; added end-to-end tests with Playwright.
+
+Junior Web Developer, Kreativ Agentur (2021 - 2022)
+- Built JavaScript widgets and landing pages for agency clients.
+
+SKILLS
+JavaScript, React, Node.js, Express, MongoDB, CSS, HTML, REST APIs, Playwright
+
+EDUCATION
+B.Sc. Media Informatics, HTW Berlin, 2021

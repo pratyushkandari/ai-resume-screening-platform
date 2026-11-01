@@ -1,0 +1,20 @@
+Suresh Babu
+suresh.babu@example.com | +91 98430 11223
+
+SUMMARY
+Java backend engineer with five years of experience in Spring Boot microservices. I have not used Python professionally.
+
+EXPERIENCE
+Senior Software Engineer, Nexa Banking (2021 - Present)
+- Build Spring Boot microservices for loan origination, with REST API designs reviewed by the architecture board.
+- Work with Oracle and PostgreSQL databases, including stored procedures and query tuning.
+- Publish and consume Kafka events between services; containerised the services with Docker.
+
+Software Engineer, Infocrest (2019 - 2021)
+- Developed Java web applications with Spring MVC and Hibernate.
+
+SKILLS
+Java, Spring Boot, Oracle, PostgreSQL, Kafka, Docker, REST API, Hibernate, JUnit
+
+EDUCATION
+B.E. Computer Science, PSG College of Technology, 2019
