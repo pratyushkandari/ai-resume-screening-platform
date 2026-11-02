@@ -1,0 +1,11 @@
+# Used by `pytest --cov` (CI uploads the reports). Every backend source file is measured,
+# including the command-line tools, so a module without tests shows as 0% instead of
+# being left out of the total.
+[run]
+branch = true
+source = .
+omit =
+    tests/*
+    e2e/*
+    venv/*
+    .venv/*
