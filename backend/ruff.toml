@@ -16,3 +16,4 @@ convention = "google"
 [lint.per-file-ignores]
 # Test names describe the behaviour under test; a docstring per test would repeat them.
 "tests/test_*.py" = ["D103"]
+"e2e/test_*.py" = ["D103"]

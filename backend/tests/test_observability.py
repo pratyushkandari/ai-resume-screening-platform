@@ -134,3 +134,32 @@ def test_readiness_retries_schema_creation(client, monkeypatch):
     assert client.get("/readyz").json()["database"] == "schema not ready"
     database_up = True
     assert client.get("/readyz").status_code == 200 and schema._ready is True
+
+
+def test_readiness_is_503_when_the_database_does_not_answer(client):
+    class DownSession:
+        """A session whose database connection is gone."""
+
+        def execute(self, *_args, **_kwargs):
+            """Fail like a dropped connection."""
+            raise RuntimeError("connection refused")
+
+    app.dependency_overrides[ops.get_db] = lambda: DownSession()
+    try:
+        r = client.get("/readyz")
+    finally:
+        app.dependency_overrides.clear()
+    assert r.status_code == 503
+    assert r.json()["status"] == "unavailable" and r.json()["database"] == "unavailable"
+
+
+def test_list_settings_and_relative_upload_dir(monkeypatch):
+    from app.config import BACKEND_DIR
+
+    monkeypatch.setenv("CORS_ORIGINS", "https://a.example, ,https://b.example ")
+    monkeypatch.setenv("UPLOAD_DIR", "uploads")
+    settings = load_settings()
+    assert settings.cors_origins == ["https://a.example", "https://b.example"]
+    assert settings.upload_dir == BACKEND_DIR / "uploads"  # relative paths are resolved from backend/
+    monkeypatch.setenv("CORS_ORIGINS", " ")
+    assert "http://localhost" in load_settings().cors_origins  # blank means the defaults

@@ -75,3 +75,34 @@ def test_startup_merge_canonicalizes_a_single_legacy_name(db):
     assert merge_duplicate_skills(db) == 0
     db.expire_all()
     assert [s.skill_name for s in db.query(models.Skill)] == ["machine learning"]
+
+
+def test_merge_moves_links_found_only_on_the_duplicate_and_drops_repeated_job_links(db):
+    candidate = models.Candidate(full_name="Y", email="y@y.com")
+    job = models.Job(title="Job", description="d" * 20)
+    upper, lower = models.Skill(skill_name="Kubernetes"), models.Skill(skill_name="kubernetes")
+    db.add_all([candidate, job, upper, lower])
+    db.flush()
+    resume = models.Resume(candidate=candidate, job_id=job.job_id, filename="f", upload_path="f")
+    db.add(resume)
+    db.flush()
+    db.add_all([
+        models.ResumeSkill(resume=resume, skill=lower),  # only the duplicate has this resume
+        models.JobSkill(job=job, skill=upper),
+        models.JobSkill(job=job, skill=lower),  # would become a duplicate link
+    ])
+    db.commit()
+
+    assert merge_duplicate_skills(db) == 1
+    keeper = db.query(models.Skill).one()
+    assert keeper.skill_name == "kubernetes"
+    assert db.query(models.ResumeSkill).one().skill_id == keeper.skill_id
+    assert db.query(models.JobSkill).one().skill_id == keeper.skill_id
+
+
+def test_get_or_create_returns_a_skill_that_exists_but_is_not_in_the_index(db):
+    """Another request may have created the skill after this request loaded its index."""
+    db.add(models.Skill(skill_name="terraform", canonical_name="terraform"))
+    db.commit()
+    [skill] = get_or_create_skills(db, ["Terraform"], index={})
+    assert skill.skill_name == "terraform" and db.query(models.Skill).count() == 1

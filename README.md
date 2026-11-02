@@ -306,7 +306,7 @@ Interactive documentation is served at `/docs`. Request and response examples ar
 
 ```bash
 cd backend
-pytest -q                                                    # 180 tests, in-memory SQLite, no network
+pytest -q                                                    # 227 tests, in-memory SQLite, no network
 TEST_DATABASE_URL=postgresql://user:pass@localhost:5432/test_db pytest -q
 ruff check .
 
@@ -314,13 +314,19 @@ cd frontend
 npm run lint && npm run build
 ```
 
-The backend suite covers input validation, password hashing and JWTs, an authorization
-matrix for every recruiter endpoint, applicant identity rules, upload limits and file
-handling, document parsing edge cases, the scoring formula (including a check of the
-optimized implementation against a plain reference version), query counts, the Redis
-cache and rate limiter (against fakeredis) and the health endpoints. CI runs it on SQLite
-and PostgreSQL with warnings treated as errors. The frontend has no automated tests;
-ESLint and the production build are its checks.
+The backend suite covers input validation, password hashing and JWTs (expired, tampered
+and malformed tokens), an authorization matrix for every recruiter endpoint, applicant
+identity rules, upload limits and file handling, document parsing edge cases, the
+scoring formula (including a check of the optimized implementation against a plain
+reference version), query counts, the Redis cache and rate limiter (against fakeredis),
+the health endpoints, the `manage.py` commands and the evaluation script. CI runs it on
+SQLite and PostgreSQL with warnings treated as errors and keeps the JUnit and coverage
+reports as artifacts.
+
+Two end-to-end suites run against the Docker Compose stack with the real model: API
+tests over HTTP (`make e2e`) and browser tests with Playwright (`make e2e-browser`).
+[docs/TESTING.md](docs/TESTING.md) describes every suite, how to run it and the latest
+results.
 
 ## Deployment
 
@@ -349,12 +355,14 @@ backend/
   manage.py            create-user, reset-password and seed-load-test commands
   benchmark_scoring.py scoring micro-benchmark
   evaluation/          graded jobs and resumes, ranking metrics, make eval
-  tests/
+  tests/               unit and integration tests (pytest)
+  e2e/                 API end-to-end tests against a running stack
 frontend/src/          React app: components/, hooks/useUpload.js, api.js, session.js
+frontend/e2e/          browser tests (Playwright)
 loadtest/dashboard.js  k6 load test of the dashboard endpoint
 sql/seed.sql           PostgreSQL schema and starter skills (safe to re-run)
 k8s/, render.yaml      alternative deployment manifests
-docs/                  architecture, API reference, deployment guide, runbook
+docs/                  architecture, API reference, deployment guide, runbook, testing
 ```
 
 ## Limitations

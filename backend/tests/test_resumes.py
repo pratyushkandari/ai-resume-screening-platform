@@ -224,3 +224,52 @@ def test_files_are_removed_when_saving_the_batch_fails(client, hr, monkeypatch):
         r = upload_text(tolerant, hr["headers"], job["job_id"], RESUME)
     assert r.status_code == 500
     assert set(settings.upload_dir.iterdir()) == before  # no orphaned files left behind
+
+
+def test_download_of_a_missing_or_escaping_file_is_404(client, hr, candidate, db):
+    job = create_job(client, hr["headers"])
+    resume_id = upload_text(client, candidate["headers"], job["job_id"], RESUME).json()["resume_id"]
+    url = f"/api/resumes/{resume_id}/download"
+    resume = db.get(models.Resume, resume_id)
+    (settings.upload_dir / resume.upload_path).unlink()  # file deleted from storage, row still there
+    missing = client.get(url, headers=hr["headers"])
+    assert missing.status_code == 404 and missing.json()["detail"] == "Resume file not found on server storage."
+    resume.upload_path = "../outside_uploads.txt"  # a relative path must stay inside UPLOAD_DIR
+    db.commit()
+    escaping = client.get(url, headers=hr["headers"])
+    assert escaping.status_code == 404 and escaping.json()["detail"] == "Resume file not found."
+
+
+def test_a_resume_that_fails_to_save_does_not_affect_the_rest_of_the_batch(client, hr, monkeypatch):
+    job = create_job(client, hr["headers"])
+    real = ingestion.get_or_create_skills
+    calls = []
+
+    def fail_first_resume(*args, **kwargs):
+        """Fail while linking the first resume's skills; later resumes save normally."""
+        calls.append(1)
+        if len(calls) == 1:
+            raise RuntimeError("constraint violation")
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(ingestion, "get_or_create_skills", fail_first_resume)
+    before = set(settings.upload_dir.iterdir())
+    files = [
+        ("files", ("a.txt", io.BytesIO(b"Alex Smith\nalex@test.com\nPython and SQL expert with 5 years experience."), "text/plain")),
+        ("files", ("b.txt", io.BytesIO(b"Beth Jones\nbeth@test.com\nDocker and Python developer, 4 years experience."), "text/plain")),
+    ]
+    r = client.post("/api/resumes/batch-upload", files=files, data={"job_id": str(job["job_id"])}, headers=hr["headers"])
+    assert r.status_code == 200, r.text
+    results = r.json()["results"]
+    assert [x["status"] for x in results] == ["failed", "processed"]
+    assert results[0]["error"] == "Could not save this resume."
+    assert len(set(settings.upload_dir.iterdir()) - before) == 1  # only the saved resume's file is kept
+
+
+def test_recruiter_upload_fills_a_missing_phone_without_renaming(client, hr, candidate, db):
+    job = create_job(client, hr["headers"])
+    first = upload_text(client, candidate["headers"], job["job_id"], "Casey Candidate\ncand@example.com\nPython developer.")
+    later = "Different Name\ncand@example.com\n+91 98765 43210\nPython and SQL developer with Docker."
+    upload_text(client, hr["headers"], job["job_id"], later)
+    applicant = db.get(models.Candidate, first.json()["candidate_id"])
+    assert applicant.full_name == "Casey Candidate" and applicant.phone

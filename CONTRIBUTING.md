@@ -12,11 +12,13 @@ cd frontend && npm ci
 ## Before opening a pull request
 
 ```bash
-cd backend && ruff check . && pytest -q -W error      # lint (incl. docstrings) + 180 tests
+cd backend && ruff check . && pytest -q -W error      # lint (incl. docstrings) + 227 tests
 cd frontend && npm run lint && npm run build
 ```
 
-CI runs the same commands, with the backend tests on both SQLite and PostgreSQL.
+CI runs the same commands, with the backend tests on both SQLite and PostgreSQL, and the
+end-to-end suites against the Docker Compose stack. A change to a user flow should keep
+`make e2e` and `make e2e-browser` passing; see [docs/TESTING.md](docs/TESTING.md).
 
 ## Code standards
 

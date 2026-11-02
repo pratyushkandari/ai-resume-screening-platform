@@ -2,13 +2,16 @@
 # Each target only wraps the commands documented in README.md, so nothing here is required.
 PY ?= python
 
-.PHONY: help install dev-backend dev-frontend test lint build benchmark eval docker-up docker-down clean
+.PHONY: help install dev-backend dev-frontend test coverage e2e e2e-browser lint build benchmark eval docker-up docker-down clean
 
 help:
 	@echo "install       Install backend (incl. test tools) and frontend dependencies"
 	@echo "dev-backend   Run the API with auto-reload on http://127.0.0.1:8000"
 	@echo "dev-frontend  Run the React dev server on http://localhost:5173"
-	@echo "test          Run the backend test suite"
+	@echo "test          Run the backend test suite (fast, offline)"
+	@echo "coverage      Run the backend test suite with a coverage report (backend/htmlcov)"
+	@echo "e2e           API end-to-end tests against a running stack (see docs/TESTING.md)"
+	@echo "e2e-browser   Browser tests (Playwright) against a running stack"
 	@echo "lint          Lint backend (ruff) and frontend (eslint)"
 	@echo "build         Build the production frontend bundle"
 	@echo "benchmark     Micro-benchmark the scoring function"
@@ -28,6 +31,16 @@ dev-frontend:
 
 test:
 	cd backend && $(PY) -m pytest -q
+
+coverage:
+	cd backend && $(PY) -m pytest -q --cov --cov-report=term --cov-report=html
+
+# Both need a running stack and E2E_HR_SIGNUP_CODE; E2E_BASE_URL defaults to http://localhost.
+e2e:
+	cd backend && $(PY) -m pytest e2e -q
+
+e2e-browser:
+	cd frontend && npm run test:e2e
 
 lint:
 	cd backend && ruff check .
@@ -50,4 +63,4 @@ docker-down:
 
 clean:
 	find . -type d -name "__pycache__" -prune -exec rm -rf {} +
-	rm -rf backend/.pytest_cache frontend/dist
+	rm -rf backend/.pytest_cache backend/htmlcov backend/reports backend/.coverage frontend/dist frontend/playwright-report frontend/test-results
