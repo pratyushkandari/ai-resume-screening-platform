@@ -77,3 +77,38 @@ def test_cross_validation_scores_every_pair_exactly_once():
     finals, thresholds, chosen = cross_validate(job_ids, resume_ids, scores, grades)
     assert set(finals) == set(thresholds) == set(grades)
     assert len(chosen) == 5
+
+
+def test_signal_scores_stops_without_the_embedding_model():
+    from evaluation.evaluate import signal_scores
+
+    jobs, resumes, _ = load_dataset()
+    with pytest.raises(SystemExit, match="embedding model is not available"):
+        signal_scores(jobs, resumes)
+
+
+def test_main_prints_the_comparison_table(fake_model, capsys):
+    from evaluation.evaluate import main
+
+    main()  # the whole pipeline on the real dataset, with the bag-of-words stand-in model
+    out = capsys.readouterr().out
+    assert "Ranking quality: 5 jobs x 50 resumes" in out
+    for row in ("| Skills only |", "| Semantic only |", "| Previous hand-picked weights | 0.70 / 0.30 |",
+                "| Cross-validated tuning (held out) |", f"| Production (tuned on all resumes) | {SKILL_WEIGHT:.2f} / "):
+        assert row in out
+    assert out.count("  fold ") == 5 and f"production uses {SKILL_WEIGHT:.2f}, no bonus, {ACCEPT_THRESHOLD:.2f}" in out
+
+
+def test_main_refuses_incomplete_labels_or_weights_that_do_not_add_up(fake_model, monkeypatch):
+    from evaluation import evaluate
+
+    jobs, resumes, grades = load_dataset()
+    incomplete = dict(grades)
+    incomplete.pop(next(iter(incomplete)))
+    monkeypatch.setattr(evaluate, "load_dataset", lambda: (jobs, resumes, incomplete))
+    with pytest.raises(SystemExit, match="labels.csv has no grade for 1 pairs"):
+        evaluate.main()
+    monkeypatch.setattr(evaluate, "load_dataset", lambda: (jobs, resumes, grades))
+    monkeypatch.setattr(evaluate, "SEMANTIC_WEIGHT", 0.5)
+    with pytest.raises(SystemExit, match="must add up to 1"):
+        evaluate.main()
