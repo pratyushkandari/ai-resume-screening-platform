@@ -5,6 +5,15 @@ All notable changes to this project are listed here.
 ## Unreleased
 
 ### Added
+- End-to-end tests against the Docker Compose stack: API flows over HTTP (`make e2e`,
+  `backend/e2e/`) and browser tests with Playwright (`make e2e-browser`, `frontend/e2e/`).
+  CI runs both in a new job.
+- 47 backend tests for paths that had none: expired and malformed tokens, malformed
+  request bodies, readiness with the database down, Redis failures, missing files on
+  download, a resume that fails to save inside a batch, parsing edge cases, the
+  `manage.py` commands and the evaluation script. Backend coverage went from 82% to 97%.
+- CI keeps JUnit and coverage reports as artifacts; `make coverage` produces the same
+  report locally. `docs/TESTING.md` lists every suite and its latest results.
 - Ranking evaluation: 5 jobs, 50 resumes and 250 graded (job, resume) pairs in
   `backend/evaluation/`, NDCG@10 and Precision@5, and `make eval`, which compares
   skills-only, semantic-only, the previous weights and cross-validated tuned weights.
