@@ -46,6 +46,11 @@ coverage.xml
 *.log
 .hypothesis/
 htmlcov/
+reports/
+# Playwright: reports, traces and the sessions saved by e2e/global-setup.js
+frontend/test-results/
+frontend/playwright-report/
+frontend/e2e/.auth/
 
 # --- Node.js & React Frontend ---
 node_modules/
