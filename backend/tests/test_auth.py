@@ -2,8 +2,9 @@
 
 from dataclasses import replace
 from pathlib import Path
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
+import jwt
 import pytest
 
 from app import auth, models
@@ -35,6 +36,9 @@ def test_production_cost_factor_is_12():
         ("Password123", False),    # no special character
         ("password123", False),    # common password
         ("A1!" + "a" * 70, False),  # over bcrypt's 72-byte limit
+        ("A1!" + "a" * 130, False),  # over the 128-character limit
+        ("Bluesky2026Go", False),  # no special character, not a common password
+        ("", False),
         (PASSWORD, True),
     ],
 )
@@ -45,7 +49,8 @@ def test_password_strength(password, ok):
 @pytest.mark.parametrize(
     "email, ok",
     [("alex@company.com", True), ("John.Doe+hr@sub.domain.org", True), ("invalid-email", False),
-     ("@missing-user.com", False), ("user@.com", False), ("user@domain", False)],
+     ("@missing-user.com", False), ("user@.com", False), ("user@domain", False), ("", False),
+     ("a" * 250 + "@example.com", False), ("user@-bad.com", False), ("user@sub..com", False)],
 )
 def test_email_validation(email, ok):
     assert auth.validate_email_format(email)[0] is ok
@@ -133,6 +138,36 @@ def test_me_requires_valid_token(client):
     assert client.get("/api/me", headers={"Authorization": "Bearer not-a-token"}).status_code == 401
 
 
+def test_expired_token_is_rejected_with_a_sign_in_again_message(client, db):
+    user = make_user("candidate", "late@example.com")
+    stored = db.get(models.User, user["id"])
+    expired = auth.create_access_token(stored, expires_delta=timedelta(seconds=-5))
+    r = client.get("/api/me", headers={"Authorization": f"Bearer {expired}"})
+    assert r.status_code == 401 and r.json()["detail"] == "Session token has expired. Please log in again."
+
+
+def test_token_whose_subject_is_not_a_user_id_is_rejected(client):
+    claims = {"sub": "not-a-number", "role": "hr", "exp": datetime.now(timezone.utc) + timedelta(minutes=5)}
+    token = jwt.encode(claims, auth.settings.jwt_secret_key, algorithm=auth.settings.jwt_algorithm)
+    r = client.get("/api/me", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 401 and r.json()["detail"] == "Invalid token payload."
+
+
+@pytest.mark.parametrize("path", ["/api/register", "/api/login"])
+def test_malformed_request_bodies_are_rejected(client, path):
+    broken = client.post(path, content=b'{"email": ', headers={"Content-Type": "application/json"})
+    assert broken.status_code == 400 and broken.json()["detail"] == "Malformed request body."
+    not_an_object = client.post(path, json=["email", "password"])
+    assert not_an_object.status_code == 400 and not_an_object.json()["detail"] == "Request body must be an object."
+
+
+def test_login_with_an_invalid_email_or_no_password_gets_the_same_401(client):
+    make_user("candidate", "real@example.com")
+    for body in ({"email": "not-an-email", "password": PASSWORD}, {"email": "real@example.com", "password": ""}, {}):
+        r = client.post("/api/login", json=body)
+        assert r.status_code == 401 and r.json()["detail"] == "Invalid email or password."
+
+
 def test_token_for_deleted_user_is_rejected(client, db):
     user = make_user("candidate", "gone@example.com")
     db.query(models.User).filter_by(user_id=user["id"]).delete()
@@ -148,3 +183,17 @@ def test_unknown_email_still_runs_a_password_check(client, monkeypatch):
     r = client.post("/api/login", json={"email": "nobody@example.com", "password": PASSWORD})
     assert r.status_code == 401 and r.json()["detail"] == "Invalid email or password."
     assert checked == [auth.dummy_password_hash()]
+
+
+def test_simultaneous_registration_with_the_same_email_gets_409(client, monkeypatch):
+    """Two requests can both pass the duplicate check; the unique index stops the second."""
+    from sqlalchemy.exc import IntegrityError
+
+    def lost_the_race(self):
+        """Fail the commit as the database does when the other request inserted first."""
+        raise IntegrityError("INSERT INTO users", {}, Exception("duplicate key value violates unique constraint"))
+
+    monkeypatch.setattr("sqlalchemy.orm.Session.commit", lost_the_race)
+    body = {"name": "Race Twin", "email": "twin@example.com", "password": PASSWORD}
+    r = client.post("/api/register", json=body)
+    assert r.status_code == 409 and r.json()["detail"].startswith("An account with this email already exists")
