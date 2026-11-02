@@ -204,3 +204,79 @@ def test_clean_text(raw, expected):
     from app.text_utils import clean_text
 
     assert clean_text(raw) == expected
+
+
+def test_docx_table_cells_are_extracted_once(tmp_path):
+    import docx
+
+    document = docx.Document()
+    document.add_paragraph("Sam Table")
+    table = document.add_table(rows=2, cols=3)
+    table.cell(0, 0).merge(table.cell(0, 1)).text = "Skills"  # merged cells repeat their text
+    table.cell(0, 2).text = "Python"
+    table.cell(1, 0).text = "Tools"
+    table.cell(1, 1).text = "Docker"
+    path = tmp_path / "table.docx"
+    document.save(path)
+    text = extract_text(path)
+    assert "Skills | Python" in text and "Tools | Docker" in text
+
+
+def test_broken_utf16_text_file_is_rejected(tmp_path):
+    path = tmp_path / "cv.txt"
+    path.write_bytes(b"\xff\xfeZ\x00o")  # BOM followed by an odd number of bytes
+    with pytest.raises(DocumentError, match="UTF-16"):
+        extract_text(path)
+
+
+def test_bytes_that_are_not_cp1252_fall_back_to_latin1(tmp_path):
+    path = tmp_path / "cv.txt"
+    path.write_bytes(b"Ana \x81 Lima")  # 0x81 is undefined in cp1252
+    assert extract_text(path) == "Ana \x81 Lima"
+
+
+def test_empty_text_gives_empty_contacts_and_skills():
+    assert parse_contacts("") == {"name": None, "email": None, "phone": None}
+    assert extract_skills("", ["python"]) == []
+    from app.text_utils import clean_text
+
+    assert clean_text("") == ""
+
+
+def test_golang_counts_as_go():
+    assert skills("Backend services written in Golang and Rust.", ["go", "rust"]) == ["go", "rust"]
+
+
+def test_embedding_failure_stores_no_vectors(monkeypatch):
+    class FailingModel:
+        """A model that runs out of memory while encoding."""
+
+        def encode(self, *_args, **_kwargs):
+            """Fail like an out-of-memory error."""
+            raise MemoryError("out of memory")
+
+    monkeypatch.setattr(ml_utils.embedding_model, "_model", FailingModel())
+    assert ml_utils.embed_batch(["a", "b"]) == [None, None]
+
+
+def test_failed_model_load_is_reported_and_not_retried_at_once(monkeypatch):
+    import sys
+    import types
+
+    attempts = []
+
+    class Unloadable:
+        """Stands in for SentenceTransformer when the weights cannot be downloaded."""
+
+        def __init__(self, name):
+            attempts.append(name)
+            raise OSError("no network")
+
+    monkeypatch.setitem(sys.modules, "sentence_transformers", types.SimpleNamespace(SentenceTransformer=Unloadable))
+    model = ml_utils._EmbeddingModel("some/model")
+    assert model.get() is None and model.last_error == "OSError: no network"
+    assert model.get() is None and attempts == ["some/model"]  # waits RETRY_AFTER_SECONDS before trying again
+
+
+def test_repeated_or_blank_vocabulary_entries_are_matched_once():
+    assert skills("Python developer", ["python", "Python", "", None]) == ["python"]
