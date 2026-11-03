@@ -76,6 +76,17 @@ One account sent more than `UPLOAD_RATE_LIMIT_PER_MINUTE` upload requests (defau
 a batch counts once) in the current minute. Raise the value in `.env` if recruiters
 legitimately upload more, or set it to `0` to turn the limit off.
 
+### A new commit was not deployed
+`journalctl -u talentflow-update -n 100` on the server says why:
+- "Waiting for CI": CI on that commit has not finished (or GitHub cannot be reached).
+- "CI failed": fix the build on GitHub; the next passing commit is deployed.
+- "Files ... were changed on the server": run `git status` in the checkout and keep or discard
+  the change.
+- "Could not deploy ...; going back": the build failed or `/readyz` stayed down; the log above
+  it shows the backend output. The site is back on the previous version. After fixing the cause
+  (for example `sudo docker builder prune -af` when the disk is full), delete
+  `/var/lib/talentflow-update/failed-commit` and run `sudo systemctl start talentflow-update`.
+
 ### A user reports an error with a request ID
 
 Search the API logs for that ID. The full traceback is logged next to it.

@@ -95,6 +95,46 @@ Then set `CORS_ORIGINS=https://<your-domain>` in `.env` and run `docker compose 
 
 ## 4. Updating to a new version
 
+### Automatically
+
+After a one-time setup, the server deploys every commit on `main` that passed CI by itself. A
+systemd timer runs `infra/auto-update/update.sh` every 5 minutes. The script:
+
+1. fetches `main` from GitHub and stops if the server already runs the newest commit;
+2. waits while CI on the new commit is still running, and skips a commit whose CI failed (it
+   asks GitHub's public API; no token is needed);
+3. fast-forwards the checkout, rebuilds the images, restarts the stack and waits for `/readyz`.
+   Docker reuses unchanged layers, so a code change takes a few minutes; a change to
+   `requirements.txt` rebuilds PyTorch and takes 10-20 minutes on a small instance;
+4. if the build fails or the new version is not ready within five minutes, goes back to the
+   previous commit and images, and skips that commit until a newer one is pushed.
+
+The site stays up during the build; the restart takes about a minute. Nothing is stored on
+GitHub and no port is opened: the server only makes outgoing requests.
+
+One-time setup, on the server:
+
+```bash
+cd ~/ai-resume-screening-platform
+git pull --ff-only
+sudo bash infra/auto-update/install.sh
+```
+
+Afterwards:
+
+- `systemctl list-timers talentflow-update.timer` shows the next check.
+- `journalctl -u talentflow-update -n 50` shows what each check did ("Waiting for CI",
+  "Deployed", or why it went back).
+- `sudo systemctl start talentflow-update` checks right away.
+- `sudo bash infra/auto-update/install.sh remove` turns automatic updates off.
+
+Keep the server's checkout clean: if files in it are edited on the server, updates stop (with a
+message in the log) until `git status` is clean again. To retry a commit that failed, delete
+`/var/lib/talentflow-update/failed-commit` and run `sudo systemctl start talentflow-update`. To
+undo a bad change, revert it on GitHub; the revert is deployed like any other commit.
+
+### By hand
+
 ```bash
 cd ai-resume-screening-platform
 git pull

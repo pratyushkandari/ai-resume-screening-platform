@@ -330,7 +330,8 @@ results.
 
 ## Deployment
 
-Production runs on a single AWS EC2 instance with Docker Compose.
+Production runs on a single AWS EC2 instance with Docker Compose. A timer on the server
+deploys every commit on `main` that passed CI (`infra/auto-update/`).
 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) walks through the instance, HTTPS, updates and
 backups, and [docs/RUNBOOK.md](docs/RUNBOOK.md) covers configuration and common
 incidents. Kubernetes manifests (`k8s/`, with a HorizontalPodAutoscaler) and a Render
@@ -361,6 +362,7 @@ frontend/src/          React app: components/, hooks/useUpload.js, api.js, sessi
 frontend/e2e/          browser tests (Playwright)
 loadtest/dashboard.js  k6 load test of the dashboard endpoint
 sql/seed.sql           PostgreSQL schema and starter skills (safe to re-run)
+infra/auto-update/     server timer that deploys passing commits from main
 k8s/, render.yaml      alternative deployment manifests
 docs/                  architecture, API reference, deployment guide, runbook, testing
 ```
