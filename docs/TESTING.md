@@ -9,6 +9,7 @@ Every suite, what it covers, how to run it and its latest results.
 | API end-to-end | `backend/e2e/` | `make e2e` | a running Docker Compose stack | `e2e` job |
 | Browser end-to-end (Playwright) | `frontend/e2e/` | `make e2e-browser` | a running stack and Chromium | `e2e` job |
 | Lint and build | | `make lint`, `make build` | | `backend` and `frontend` jobs |
+| Server update script | `infra/auto-update/` | `bash infra/auto-update/test_update.sh` | Linux, git, Python 3 | `server-update` job |
 | Ranking evaluation | `backend/evaluation/` | `make eval` | the embedding model (about 90 MB download) | no; results are in the README |
 | Load test | `loadtest/dashboard.js` | see the README | a stack seeded with 10,000 resumes, Docker for k6 | no |
 
@@ -86,6 +87,16 @@ causes on purpose.
   pasted skills becoming tags, the new job opening on the dashboard).
 - **Layout:** every page at 1280, 768 and 375 pixels wide without sideways scrolling or
   console errors.
+
+## Server update script
+
+`infra/auto-update/test_update.sh` runs the real `update.sh` against throwaway git repositories,
+with `docker`, `curl`, `runuser` and `sleep` replaced by stubs that record their calls. It
+checks: nothing happens when the server is up to date; a commit waits while CI runs or has not
+started; a commit whose CI failed is skipped, also on later runs; a passing commit is checked
+out, built, restarted and cleaned up; a version that never becomes ready, or a failed build,
+goes back to the previous commit and images; edits on the server stop the update. ShellCheck
+lints all three scripts.
 
 ## Running the end-to-end suites
 

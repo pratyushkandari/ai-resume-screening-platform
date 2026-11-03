@@ -5,6 +5,9 @@ All notable changes to this project are listed here.
 ## Unreleased
 
 ### Added
+- Automatic deployment: a systemd timer on the server deploys every commit on `main` whose CI
+  passed, checks `/readyz` and goes back to the previous version if the update fails
+  (`infra/auto-update/`, tested in CI). Setup: `docs/DEPLOYMENT.md`, section 4.
 - End-to-end tests against the Docker Compose stack: API flows over HTTP (`make e2e`,
   `backend/e2e/`) and browser tests with Playwright (`make e2e-browser`, `frontend/e2e/`).
   CI runs both in a new job.
