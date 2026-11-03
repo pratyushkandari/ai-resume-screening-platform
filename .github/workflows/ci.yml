@@ -70,6 +70,18 @@ jobs:
       - run: npm run lint
       - run: npm run build
 
+  server-update:
+    name: Server update script
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint
+        run: |
+          command -v shellcheck > /dev/null || sudo apt-get install -y shellcheck
+          shellcheck infra/auto-update/*.sh
+      - name: Test
+        run: bash infra/auto-update/test_update.sh
+
   e2e:
     name: End-to-end (Docker Compose, real model)
     runs-on: ubuntu-latest
@@ -88,7 +100,7 @@ jobs:
           docker compose up -d --build --wait
       - name: Wait until the API reports ready (embedding model loaded)
         run: |
-          for i in $(seq 1 60); do curl -fsS "$E2E_BASE_URL/readyz" && exit 0; sleep 5; done
+          for _ in $(seq 1 60); do curl -fsS "$E2E_BASE_URL/readyz" && exit 0; sleep 5; done
           docker compose logs backend
           exit 1
       - uses: actions/setup-python@v5
