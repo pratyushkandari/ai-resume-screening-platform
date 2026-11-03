@@ -64,13 +64,16 @@ test("a recruiter downloads the original resume", async ({ page, request }) => {
   const data = setupData();
   const noConsoleErrors = watchConsole(page);
   await openSetupJob(page, data);
-  const top = (await fetchSummary(request, data)).candidates[0];
-  const original = data.applicants.find((a) => a.name === top.filename);
+  // The best-ranked applicant uploaded by global-setup.js. Other tests add applicants to this
+  // job too (candidate.spec.js), and close scores can rank theirs first on another machine.
+  const candidates = (await fetchSummary(request, data)).candidates;
+  const applicant = candidates.find((c) => data.applicants.some((a) => a.name === c.filename));
+  const original = data.applicants.find((a) => a.name === applicant.filename);
   const [download] = await Promise.all([
     page.waitForEvent("download"),
-    page.getByRole("button", { name: `Download resume of ${top.candidate_name}` }).click(),
+    page.getByRole("button", { name: `Download resume of ${applicant.candidate_name}` }).click(),
   ]);
-  expect(download.suggestedFilename()).toBe(top.filename);
+  expect(download.suggestedFilename()).toBe(applicant.filename);
   const chunks = [];
   for await (const chunk of await download.createReadStream()) chunks.push(chunk);
   expect(Buffer.concat(chunks).toString("utf-8")).toBe(original.text);
